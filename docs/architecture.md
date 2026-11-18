@@ -20,8 +20,8 @@ app/
   core/       # config, seguridad JWT, conexiones DB
   models/     # SQLAlchemy (persistencia)
   schemas/    # Pydantic (contrato JSON móvil)
-  services/   # reglas de negocio (Fase 2)
-  api/        # routers HTTP (Fase 2)
+  services/   # reglas de negocio (auth, supervisión, ledger, cuentas)
+  api/v1/     # routers HTTP REST
 ```
 
 El contrato público **nunca** expone modelos ORM. Toda respuesta es un schema Pydantic serializado a JSON liviano (`snake_case`), sin hashes, sin asientos internos innecesarios y sin transferencias globales en perfiles `JUNIOR`.
@@ -36,18 +36,19 @@ Principios:
 - **Errores predecibles.** HTTP status estándar + cuerpo `{ "detail": "..." }` (FastAPI).
 - **CORS.** Orígenes configurables para PWA y desarrollo Expo/metro (`localhost`, emuladores).
 
-Healthcheck (Fase 1): `GET /health` → `{ "status": "ok", "service": "behu-api", "version": "0.1.0" }`.
+Healthcheck: `GET /health` → `{ "status": "ok", "service": "behu-api", "version": "0.1.0" }`.
 
-Routers de negocio (Fase 2, misma arquitectura):
+Contrato REST v1 (sandbox MVP, consumo móvil / `/docs`):
 
-| Recurso | Uso móvil |
-| --- | --- |
-| `POST /api/v1/auth/register` | Alta; hashing bcrypt; no devuelve password |
-| `POST /api/v1/auth/login` | Emite JWT + `expires_in` + `rol` |
-| `GET /api/v1/accounts/me` | Saldo y límites; Junior no ve red global |
-| `POST /api/v1/supervision` | Vínculo Senior→Junior y presupuesto |
-| `POST /api/v1/transfers` | Movimiento con partida doble |
-| `DELETE /api/v1/supervision/{id}` | Desvinculación con confirmación |
+| Método | Recurso | Auth | Uso |
+| --- | --- | --- | --- |
+| POST | `/api/v1/auth/register` | — | Alta + cuenta del rol + JWT |
+| POST | `/api/v1/auth/login` | — | JWT + `expires_in` + `rol` + `user` |
+| GET | `/api/v1/accounts/me` | JWT | Saldo derivado del ledger; Junior sin red global |
+| POST | `/api/v1/supervision/link` | SENIOR | Vínculo Senior→Junior y presupuesto periódico |
+| GET | `/api/v1/supervision/juniors` | SENIOR | Juniors con supervisión `ACTIVA` |
+| DELETE | `/api/v1/supervision/link/{id}?confirmacion=true` | SENIOR | Desvínculo con alerta (RF-05) |
+| POST | `/api/v1/transfers/budget` | SENIOR | Presupuesto Senior→Junior (partida doble) |
 
 ## 3. Autenticación y roles (RF-01, RF-02)
 
@@ -63,8 +64,10 @@ El cliente móvil persiste el token (Keychain / Keystore / almacenamiento PWA) y
 
 ```
 Cuenta (clase base, mapeo polimórfico SQLAlchemy)
- ├── CuentaSenior   # puede patrocinar N cuentas junior
- └── CuentaJunior   # techos de gasto; visibilidad restringida
+ ├── CuentaSenior          # patrocina N cuentas junior
+ ├── CuentaJunior          # techos de gasto; visibilidad restringida
+ ├── CuentaSandboxFloat    # puente de liquidez del MVP
+ └── CuentaSandboxEquity   # contrapartida de emisión de capital
 ```
 
 - `Cuenta` define saldo, moneda `COP`, estado y dueño (`usuario_id`).
@@ -82,12 +85,68 @@ Ningún movimiento actualiza un saldo de forma aislada. El servicio de ledger (F
 
 Invariante: para cada `transaccion_id`, `SUM(debito) = SUM(credito)`. Los asientos no se actualizan ni se borran.
 
-## 6. Persistencia políglota
+Funding inicial del sandbox (`scripts/seed_sandbox.py`):
 
-- **PostgreSQL:** verdad transaccional y de identidad (ACID).
+1. Emisión: débito `SANDBOX_EQUITY` / crédito `SANDBOX_FLOAT` por 10.000.000 COP (la cuenta equity puede quedar negativa; es contrapartida de capital, no un cliente).
+2. Alta Senior: débito `SANDBOX_FLOAT` / crédito cuenta Senior por 1.000.000 COP (`es_transferencia_global = true`, oculta al Junior).
+3. Vínculo `SupervisionCuenta` ACTIVA. Junior arranca en 0 COP.
+
+## 6. Flujos de endpoints (Fase 2)
+
+**Login / sesión móvil**
+
+```mermaid
+sequenceDiagram
+    participant App as App /docs
+    participant API as FastAPI
+    participant Auth as AuthService
+    participant DB as SQL
+    App->>API: POST /api/v1/auth/login
+    API->>Auth: verify bcrypt + emitir JWT
+    Auth->>DB: SELECT usuario
+    Auth-->>API: access_token, rol, expires_in, user
+    API-->>App: 200 JSON
+```
+
+**Presupuesto Senior → Junior (partida doble)**
+
+```mermaid
+sequenceDiagram
+    participant S as Senior
+    participant API as FastAPI
+    participant Led as LedgerService
+    participant DB as SQL
+    S->>API: POST /api/v1/transfers/budget JWT SENIOR
+    API->>Led: origen=cuenta senior, destino=junior
+    Led->>DB: lock cuentas + supervision ACTIVA
+    Led->>DB: INSERT transaccion
+    Led->>DB: INSERT ledger DEBITO origen
+    Led->>DB: INSERT ledger CREDITO destino
+    Led->>DB: UPDATE saldos (misma txn)
+    Led-->>API: Transaccion COMPLETADA
+    API-->>S: 201 JSON
+```
+
+**RF-06 Junior**
+
+```mermaid
+sequenceDiagram
+    participant J as Junior
+    participant API as FastAPI
+    participant Acc as AccountService
+    J->>API: GET /api/v1/accounts/me JWT JUNIOR
+    API->>Acc: saldo = SUM(credito) - SUM(debito)
+    Acc-->>API: historial sin es_transferencia_global
+    API-->>J: 200 JSON liviano
+```
+
+## 7. Persistencia políglota
+
+- **SQLite:** sandbox local (`sqlite+aiosqlite:///./behu_sandbox.db`) para `/docs` sin Postgres.
+- **PostgreSQL:** verdad transaccional y de identidad (ACID) en Railway.
 - **MongoDB:** `user_habits` (eventos de hábito) y `ai_recommendations` (contexto de BeHu Mini). El cliente Motor queda cableado en Fase 1; las colecciones no son RF de autenticación.
 
-## 7. Despliegue
+## 8. Despliegue
 
 | Componente | Destino |
 | --- | --- |
@@ -98,7 +157,7 @@ Invariante: para cada `transaccion_id`, `SUM(debito) = SUM(credito)`. Los asient
 
 Variables de entorno (12-factor) vía `app/core/config.py`. Secretos de JWT y cadenas de conexión **nunca** se commitean. Fase 1 deja el contrato KMS/S3 documentado; la integración cloud se implementa en sprints posteriores.
 
-## 8. Seguridad (línea base Fase 1)
+## 9. Seguridad (línea base Sprint 1)
 
 - Hashing de contraseñas: bcrypt.
 - JWT firmado (HS256 en desarrollo; rotación/KMS en producción).

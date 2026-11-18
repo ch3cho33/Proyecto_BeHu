@@ -7,8 +7,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, ForeignKey, Numeric, String
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy import CheckConstraint, ForeignKey, Numeric, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -20,6 +19,8 @@ if TYPE_CHECKING:
 class TipoCuenta(StrEnum):
     SENIOR = "SENIOR"
     JUNIOR = "JUNIOR"
+    SANDBOX_FLOAT = "SANDBOX_FLOAT"
+    SANDBOX_EQUITY = "SANDBOX_EQUITY"
 
 
 class EstadoCuenta(StrEnum):
@@ -33,7 +34,10 @@ class Cuenta(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     __tablename__ = "cuenta"
     __table_args__ = (
-        CheckConstraint("saldo >= 0", name="ck_cuenta_saldo_no_negativo"),
+        CheckConstraint(
+            "saldo >= 0 OR tipo = 'SANDBOX_EQUITY'",
+            name="ck_cuenta_saldo_no_negativo",
+        ),
     )
     __mapper_args__ = {
         "polymorphic_on": "tipo",
@@ -41,7 +45,7 @@ class Cuenta(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     }
 
     usuario_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("usuario.id", ondelete="RESTRICT"),
         unique=True,
         nullable=False,
@@ -87,4 +91,22 @@ class CuentaJunior(Cuenta):
     __mapper_args__ = {"polymorphic_identity": TipoCuenta.JUNIOR.value}
 
     def aplica_limites_de_gasto(self) -> bool:
+        return True
+
+
+class CuentaSandboxFloat(Cuenta):
+    """Puente operativo del sandbox. El funding de clientes sale de aquí."""
+
+    __mapper_args__ = {"polymorphic_identity": TipoCuenta.SANDBOX_FLOAT.value}
+
+    def puede_ver_transferencias_globales(self) -> bool:
+        return True
+
+
+class CuentaSandboxEquity(Cuenta):
+    """Contrapartida de emisión de capital. Puede quedar en saldo negativo."""
+
+    __mapper_args__ = {"polymorphic_identity": TipoCuenta.SANDBOX_EQUITY.value}
+
+    def puede_ver_transferencias_globales(self) -> bool:
         return True

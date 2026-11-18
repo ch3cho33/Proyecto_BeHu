@@ -7,6 +7,14 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class BudgetTransferRequest(BaseModel):
+    """Asignación de presupuesto parental (sandbox, no ACH)."""
+
+    cuenta_junior_id: UUID
+    monto: Decimal = Field(gt=0)
+    descripcion: str | None = Field(default=None, max_length=280)
+
+
 class TransferCreateRequest(BaseModel):
     cuenta_destino_id: UUID
     monto: Decimal = Field(gt=0)

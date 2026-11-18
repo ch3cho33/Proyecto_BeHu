@@ -38,8 +38,8 @@ Herencia de tabla única (`polymorphic_on = tipo`). `SENIOR` y `JUNIOR` comparte
 | --- | --- | --- |
 | `id` | UUID | PK |
 | `usuario_id` | UUID | FK `usuario.id`, UNIQUE, NOT NULL |
-| `tipo` | VARCHAR(20) | NOT NULL, `SENIOR` \| `JUNIOR` (discriminador) |
-| `saldo` | NUMERIC(18, 2) | NOT NULL, default 0, CHECK `>= 0` |
+| `tipo` | VARCHAR(20) | NOT NULL, `SENIOR` \| `JUNIOR` \| `SANDBOX_FLOAT` \| `SANDBOX_EQUITY` |
+| `saldo` | NUMERIC(18, 2) | NOT NULL, default 0, CHECK `>= 0` excepto `SANDBOX_EQUITY` |
 | `moneda` | CHAR(3) | NOT NULL, default `COP` |
 | `estado` | VARCHAR(20) | NOT NULL, `ACTIVA` \| `BLOQUEADA` \| `CERRADA` |
 | `limite_gasto_diario` | NUMERIC(18, 2) | NULL (junior) |
@@ -54,6 +54,8 @@ Mapeo POO:
 - `Cuenta` → filas de `cuenta`
 - `CuentaSenior` → `tipo = SENIOR`
 - `CuentaJunior` → `tipo = JUNIOR`
+- `CuentaSandboxFloat` → `tipo = SANDBOX_FLOAT` (puente de liquidez del sandbox)
+- `CuentaSandboxEquity` → `tipo = SANDBOX_EQUITY` (contrapartida de emisión de capital)
 
 ### 1.3 `supervision_cuenta`
 
@@ -82,7 +84,7 @@ Cabecera de negocio de un movimiento. No sustituye al ledger.
 | Columna | Tipo | Restricciones |
 | --- | --- | --- |
 | `id` | UUID | PK |
-| `tipo` | VARCHAR(32) | NOT NULL (`TRANSFERENCIA_INTERNA`, `ASIGNACION_PRESUPUESTO`, `REVERSO`) |
+| `tipo` | VARCHAR(32) | NOT NULL (`TRANSFERENCIA_INTERNA`, `ASIGNACION_PRESUPUESTO`, `APERTURA_SANDBOX`, `REVERSO`) |
 | `estado` | VARCHAR(20) | NOT NULL, `PENDIENTE` \| `COMPLETADA` \| `RECHAZADA` |
 | `monto` | NUMERIC(18, 2) | NOT NULL, CHECK `> 0` |
 | `moneda` | CHAR(3) | NOT NULL, default `COP` |

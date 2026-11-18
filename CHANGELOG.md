@@ -2,6 +2,22 @@
 
 Todos los cambios relevantes del backend BeHu se registran aquí.
 
+## [0.2.0] — 2026-11-15 — Sprint 1 / Fase 2
+
+### Added
+
+- Excepciones de dominio y mapeo HTTP (`app/services/exceptions.py`).
+- Servicios: autenticación (registro + cuenta + JWT), supervisión parental, ledger de partida doble atómico, consulta de saldo derivado.
+- API REST v1: `/auth/register`, `/auth/login`, `/accounts/me`, `/supervision/link`, `/supervision/juniors`, `/supervision/link/{id}`, `/transfers/budget`.
+- Sandbox SQLite portable y script `scripts/seed_sandbox.py` (`senior@behu.test` / `junior@behu.test`).
+- Cuentas puente `SANDBOX_FLOAT` y `SANDBOX_EQUITY` para funding inicial sin `UPDATE` suelto de saldo.
+- CORS, `create_all` en desarrollo y handlers JSON `{ "detail": "..." }`.
+
+### Notes
+
+- MVP académico: no hay ACH, redes de tarjetas ni KMS/S3 cableados.
+- Perfil Junior no ve movimientos con `es_transferencia_global = true`.
+
 ## [0.1.0] — 2026-10-13 — Sprint 1 / Fase 1
 
 ### Added
@@ -17,5 +33,4 @@ Todos los cambios relevantes del backend BeHu se registran aquí.
 
 ### Notes
 
-- Sin endpoints de negocio (auth, supervisión, transferencias): Fase 2.
 - Integración AWS S3 / KMS documentada, no cableada.

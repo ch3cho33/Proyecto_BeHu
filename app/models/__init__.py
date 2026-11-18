@@ -1,6 +1,12 @@
 """Modelos SQLAlchemy del núcleo transaccional."""
 
-from app.models.account import Cuenta, CuentaJunior, CuentaSenior
+from app.models.account import (
+    Cuenta,
+    CuentaJunior,
+    CuentaSandboxEquity,
+    CuentaSandboxFloat,
+    CuentaSenior,
+)
 from app.models.base import Base
 from app.models.ledger import LedgerContable
 from app.models.supervision import SupervisionCuenta
@@ -13,6 +19,8 @@ __all__ = [
     "Cuenta",
     "CuentaSenior",
     "CuentaJunior",
+    "CuentaSandboxFloat",
+    "CuentaSandboxEquity",
     "SupervisionCuenta",
     "Transaccion",
     "LedgerContable",

@@ -21,6 +21,21 @@ class SupervisionUnlinkRequest(BaseModel):
     )
 
 
+class SupervisionJuniorItem(BaseModel):
+    """Junior vinculado, pensado para listados en la app del acudiente."""
+
+    supervision_id: UUID
+    cuenta_junior_id: UUID
+    email: str
+    nombres: str
+    apellidos: str
+    saldo: Decimal
+    moneda: str = "COP"
+    presupuesto_periodico: Decimal
+    periodicidad: str
+    estado: str
+
+
 class SupervisionPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

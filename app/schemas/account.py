@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.transaction import TransactionPublic
+
 
 class AccountPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -33,3 +35,10 @@ class AccountBalanceResponse(BaseModel):
     puede_ver_transferencias_globales: bool = Field(
         description="False para perfiles JUNIOR",
     )
+
+
+class AccountMeResponse(BaseModel):
+    """Saldo derivado del ledger + historial visible según el rol JWT."""
+
+    account: AccountBalanceResponse
+    movimientos: list[TransactionPublic] = Field(default_factory=list)

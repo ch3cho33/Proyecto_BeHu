@@ -1,15 +1,30 @@
 """Schemas de autenticación e identidad (payloads livianos)."""
 
 from datetime import datetime
+from typing import Annotated
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
 from app.core.security import ROLE_JUNIOR, ROLE_SENIOR
 
 
+def _sandbox_email(value: str) -> str:
+    """Acepta dominios de laboratorio (.test) que EmailStr RFC rechaza."""
+    cleaned = value.strip().lower()
+    if "@" not in cleaned or " " in cleaned:
+        raise ValueError("Correo inválido")
+    local, _, domain = cleaned.partition("@")
+    if not local or "." not in domain:
+        raise ValueError("Correo inválido")
+    return cleaned
+
+
+SandboxEmail = Annotated[str, AfterValidator(_sandbox_email)]
+
+
 class UserRegisterRequest(BaseModel):
-    email: EmailStr
+    email: SandboxEmail
     password: str = Field(min_length=8, max_length=72)
     nombres: str = Field(min_length=1, max_length=120)
     apellidos: str = Field(min_length=1, max_length=120)
@@ -18,8 +33,21 @@ class UserRegisterRequest(BaseModel):
 
 
 class UserLoginRequest(BaseModel):
-    email: EmailStr
+    email: SandboxEmail
     password: str = Field(min_length=1, max_length=72)
+
+
+class UserPublic(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    email: SandboxEmail
+    nombres: str
+    apellidos: str
+    rol: str
+    is_active: bool
+    kyc_status: str
+    created_at: datetime
 
 
 class TokenResponse(BaseModel):
@@ -31,14 +59,7 @@ class TokenResponse(BaseModel):
     rol: str
 
 
-class UserPublic(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class AuthSessionResponse(TokenResponse):
+    """Login/registro: JWT + perfil público para el cliente móvil."""
 
-    id: UUID
-    email: EmailStr
-    nombres: str
-    apellidos: str
-    rol: str
-    is_active: bool
-    kyc_status: str
-    created_at: datetime
+    user: UserPublic
