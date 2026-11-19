@@ -15,7 +15,11 @@ from app.models import Base  # noqa: F401  — registra mappers SQLAlchemy
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    if settings.auto_create_tables and not settings.is_production:
+    if settings.auto_seed_sandbox:
+        from scripts.seed_sandbox import seed
+
+        await seed()
+    elif settings.auto_create_tables and not settings.is_production:
         await create_schema()
     yield
     await close_mongo_client()

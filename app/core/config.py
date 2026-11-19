@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "behu-api"
-    app_version: str = "0.4.0"
+    app_version: str = "1.0.0"
     environment: str = "development"
     debug: bool = False
 
@@ -25,6 +25,7 @@ class Settings(BaseSettings):
         default="sqlite+aiosqlite:///./behu_sandbox.db"
     )
     auto_create_tables: bool = Field(default=True)
+    auto_seed_sandbox: bool = Field(default=False)
     mongodb_uri: str = Field(default="mongodb://localhost:27017")
     mongodb_db: str = Field(default="behu")
 

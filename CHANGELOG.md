@@ -2,6 +2,14 @@
 
 Todos los cambios relevantes del backend BeHu se registran aquí.
 
+## [1.0.0] — 2026-11-19 — Release MVP
+
+### Added
+
+- Arranque con `AUTO_SEED_SANDBOX=true`: crea el esquema, los usuarios de prueba, el catálogo y las tres cápsulas sin duplicar filas si el proceso reinicia.
+- Suite `tests/test_e2e_mvp.py` (pytest + httpx) del ciclo HU-01 a HU-09.
+- Guía de variables para Render, MongoDB Atlas y Vercel en `docs/deployment.md`.
+
 ## [0.4.0] — 2026-11-19 — Sprint 3
 
 ### Added

@@ -1,6 +1,16 @@
-# Despliegue BeHu — Vercel, Render, Neon/Render Postgres y MongoDB Atlas
+# Despliegue BeHu v1.0.0 — Vercel, Render y MongoDB Atlas
 
-El MVP no usa Railway. El API corre en **Render** (imagen Docker) y la PWA en **Vercel**.
+BeHu v1.0.0 es el sandbox académico completo: cuentas Senior/Junior, ledger de partida doble, presupuesto, compras con alerta, metas, BeHu Mini, Score y Academia. El API corre en **Render** (imagen Docker) y la PWA en **Vercel**.
+
+## 0. Pruebas antes de desplegar
+
+```bash
+source .venv/bin/activate
+pip install -r requirements.txt
+pytest -q
+```
+
+`tests/test_e2e_mvp.py` usa una SQLite propia (`test_mvp.db`) y no toca `behu_sandbox.db`. Cubre registro y JWT, presupuesto con partida doble, gasto impulsivo, meta que congela saldo, BeHu Mini por rol, score y quiz.
 
 ## 1. Frontend en Vercel
 
@@ -23,14 +33,29 @@ Variables que debes completar en el panel (marcadas `sync: false`):
 
 `DATABASE_URL` sale de la base `behu-postgres`. El API convierte `postgres://` y `postgresql://` a `postgresql+asyncpg://`.
 
-En producción `AUTO_CREATE_TABLES=false`. Antes del primer tráfico, crea el esquema (job o shell de Render):
+Con `AUTO_SEED_SANDBOX=true` el arranque crea las tablas si faltan y carga el sandbox una sola vez. Un reinicio vuelve a pasar por el seed y no duplica usuarios ni módulos. Déjalo en `false` fuera de este sandbox académico.
 
-```bash
-python -c "import asyncio; from app.core.database import create_schema; asyncio.run(create_schema())"
-python scripts/seed_sandbox.py
-```
+Variables exactas del servicio web:
 
-El seed es de sandbox académico. En un entorno real no uses las contraseñas de prueba.
+| Variable | Valor en Render |
+| --- | --- |
+| `ENVIRONMENT` | `production` |
+| `AUTO_CREATE_TABLES` | `false` |
+| `AUTO_SEED_SANDBOX` | `true` |
+| `DATABASE_URL` | Connection string de la Postgres de Render (la inyecta `render.yaml`) |
+| `MONGODB_URI` | URI de Atlas, `mongodb+srv://USER:PASSWORD@CLUSTER.mongodb.net` |
+| `MONGODB_DB` | `behu` |
+| `JWT_SECRET` | Secreto de al menos 32 caracteres (Render puede generarlo) |
+| `FRONTEND_URL` | Origen de Vercel, por ejemplo `https://behu.vercel.app` |
+| `CORS_ORIGINS` | Opcional. `FRONTEND_URL` ya se suma solo |
+| `AWS_REGION` | `us-east-1` |
+| `AWS_S3_KYC_BUCKET` | Vacío hasta tener bucket |
+| `AWS_ACCESS_KEY_ID` | Vacío hasta tener llave |
+| `AWS_SECRET_ACCESS_KEY` | Vacío hasta tener llave |
+
+En Vercel, directorio `frontend`, una sola variable: `NEXT_PUBLIC_API_URL=https://<servicio>.onrender.com/api/v1`.
+
+Usuarios que crea el seed: `senior@behu.test` / `BeHuSenior1!` y `junior@behu.test` / `BeHuJunior1!`.
 
 ## 3. MongoDB Atlas
 

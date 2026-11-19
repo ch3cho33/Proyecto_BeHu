@@ -2,9 +2,9 @@
 
 Plataforma Fintech de cuentas transaccionales, control parental e IA predictiva (BeHu Mini) para el mercado colombiano — Jäger Group (Pontificia Universidad Javeriana).
 
-El backend es un API REST **stateless** (FastAPI) pensado para **app móvil iOS/Android y PWA Next.js**. Las sesiones de dispositivo se resuelven con JWT (`sub`, `rol`, `exp`). El Sprint 1 es un **MVP sandbox**: ledger de partida doble, roles Senior/Junior y sin ACH ni redes de tarjetas reales.
+**v1.0.0** es el MVP sandbox: API REST stateless (FastAPI) para app móvil y PWA. Cubre cuentas Senior/Junior, ledger de partida doble, presupuesto, alerta de gasto impulsivo, metas, BeHu Mini, Score y Academia. No hay ACH ni redes de tarjetas reales.
 
-## Stack (Sprint 1)
+## Stack
 
 - Python 3.11+
 - FastAPI + Pydantic v2
@@ -17,6 +17,7 @@ Documentación:
 - [Arquitectura](docs/architecture.md)
 - [Esquema de datos](docs/database_schema.md)
 - [Changelog](CHANGELOG.md)
+- [Despliegue v1.0.0](docs/deployment.md)
 
 ## Requisitos
 
@@ -83,17 +84,23 @@ docker compose up --build
 docker compose exec backend python scripts/seed_sandbox.py
 ```
 
-## Rama de trabajo
+## Pruebas
 
-Sprint 3: `feature/sprint-3-scoring-educacion-pwa` → integrar en `develop`.
+```bash
+source .venv/bin/activate
+pip install -r requirements.txt
+pytest -q
+```
 
-Despliegue: [docs/deployment.md](docs/deployment.md). Score: `GET /api/v1/scoring/me`. Academia: `GET /api/v1/education/modules`. Si cambió el esquema, borra `behu_sandbox.db` y vuelve a correr el seed.
+## Release
+
+La línea de trabajo publicada es `main`, tag `v1.0.0`. El seed automático de Render se enciende con `AUTO_SEED_SANDBOX=true`. Los pasos de Atlas, Render y Vercel están en [docs/deployment.md](docs/deployment.md).
 
 ## Despliegue objetivo
 
 | Pieza | Destino |
 | --- | --- |
-| API FastAPI | Railway |
+| API FastAPI | Render |
 | PWA Next.js | Vercel |
-| KYC | AWS S3 |
-| Llaves | AWS KMS |
+| Hábitos e IA | MongoDB Atlas |
+| KYC | AWS S3 (local si no hay llaves) |

@@ -75,8 +75,23 @@ async def _ensure_system_user(
     return user
 
 
+async def _ensure_reference_data() -> None:
+    """Catálogo, academia y cuentas puente. Seguro de llamar en cada arranque."""
+    async with AsyncSessionLocal() as db:
+        await asegurar_catalogo(db)
+        await db.commit()
+    async with AsyncSessionLocal() as db:
+        await asegurar_modulos(db)
+    async with AsyncSessionLocal() as db:
+        await obtener_cuenta_sistema(db, MERCHANT_EMAIL)
+        await obtener_cuenta_sistema(db, META_EMAIL)
+        await db.commit()
+
+
 async def seed() -> None:
+    """Idempotente: un reinicio no duplica usuarios, funding ni módulos."""
     await create_schema()
+    await _ensure_reference_data()
     async with AsyncSessionLocal() as db:
         existing_senior = await _get_user(db, SENIOR_EMAIL)
         if existing_senior is not None:
@@ -166,13 +181,6 @@ async def seed() -> None:
             )
         )
         await db.commit()
-
-        async with AsyncSessionLocal() as extra:
-            await asegurar_catalogo(extra)
-            await asegurar_modulos(extra)
-            await obtener_cuenta_sistema(extra, MERCHANT_EMAIL)
-            await obtener_cuenta_sistema(extra, META_EMAIL)
-            await extra.commit()
 
         print("Sandbox poblado.")
         print(f"  SENIOR  {SENIOR_EMAIL} / {SENIOR_PASSWORD}  saldo 1.000.000 COP")
