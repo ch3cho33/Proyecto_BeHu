@@ -77,3 +77,11 @@ class GoalNotActive(DomainError):
 
 class GoalDepositExceedsTarget(DomainError):
     status_code = 400
+
+
+class ModuleNotFound(DomainError):
+    status_code = 404
+
+
+class QuizAnswerIncorrect(DomainError):
+    status_code = 400

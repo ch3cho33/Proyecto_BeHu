@@ -11,6 +11,7 @@ from app.models.account import (
 )
 from app.models.base import Base
 from app.models.category import CategoriaGasto
+from app.models.education import ModuloEducativo, ProgresoEducativo
 from app.models.goal import MetaAhorro
 from app.models.ledger import LedgerContable
 from app.models.supervision import SupervisionCuenta
@@ -28,6 +29,8 @@ __all__ = [
     "CuentaSandboxMerchant",
     "CuentaSandboxMeta",
     "CategoriaGasto",
+    "ModuloEducativo",
+    "ProgresoEducativo",
     "MetaAhorro",
     "SupervisionCuenta",
     "Transaccion",

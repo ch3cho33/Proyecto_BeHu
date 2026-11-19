@@ -2,6 +2,22 @@
 
 Todos los cambios relevantes del backend BeHu se registran aquí.
 
+## [0.4.0] — 2026-11-19 — Sprint 3
+
+### Added
+
+- Score BeHu `GET /api/v1/scoring/me`: puntaje 0-100, nivel, factores y consejos a partir del ledger, metas, compras forzadas y academia.
+- Academia BeHu: `modulo_educativo`, `progreso_educativo`, tres cápsulas con quiz, insignia y puntos de score.
+- Compras con `forzada=true` quedan marcadas para el score.
+- PWA: manifiesto, iconos, service worker y Score/Academia en el dashboard.
+- `FRONTEND_URL` se suma a CORS. `render.yaml` y `docs/deployment.md` para Render, Postgres y MongoDB Atlas.
+- `app/core/storage.py`: KYC en S3 con boto3 o en `data/kyc/` si no hay credenciales.
+
+### Notes
+
+- Recrea `behu_sandbox.db` para la columna `forzada` y las tablas educativas.
+- En producción `AUTO_CREATE_TABLES` queda en false; el esquema se crea con el comando de `docs/deployment.md`.
+
 ## [0.3.0] — 2026-11-19 — Sprint 2
 
 ### Added

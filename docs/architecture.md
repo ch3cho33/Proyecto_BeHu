@@ -179,3 +179,16 @@ Variables de entorno (12-factor) vía `app/core/config.py`. Secretos de JWT y ca
 El motor `app/services/behu_mini_ai.py` es determinista (sandbox): Junior habla de categorías, gastos hormiga y metas; Senior habla de CDT, FIC conservador y excedente familiar en COP. No llama a un proveedor externo.
 
 Docker: `Dockerfile` (Python 3.11) y `docker-compose.yml` (API + Mongo 7). Frontend Next.js en `frontend/`, pensado para Vercel (`NEXT_PUBLIC_API_URL`).
+
+## 11. Sprint 3 — score, academia y nube
+
+| Método | Ruta | Uso |
+| --- | --- | --- |
+| GET | `/api/v1/scoring/me` | Puntaje 0-100, nivel, factores y consejos |
+| GET | `/api/v1/education/modules` | Cápsulas y si el usuario ya las completó |
+| POST | `/api/v1/education/modules/{id}/complete` | Quiz. Si acierta, insignia y puntos de score |
+| POST | `/api/v1/kyc/document` | Archivo KYC a S3 o a `data/kyc/` |
+
+El score parte de 50. Sube con metas abonadas, compras dentro del límite semanal y módulos completados. Baja con compras `forzada=true` y con gastar el 90% o más del límite diario el mismo día. Niveles: Crítico, En Construcción, Saludable, Excelente.
+
+La PWA vive en `frontend/public/manifest.json`. CORS acepta `CORS_ORIGINS` y `FRONTEND_URL` (dominio Vercel). El despliegue objetivo del API pasa a Render; la guía está en `docs/deployment.md`.

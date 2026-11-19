@@ -112,4 +112,5 @@ async def simular_compra(db: AsyncSession, usuario: Usuario, payload: SpendReque
         es_transferencia_global=False,
         categoria=payload.categoria,
         comercio=payload.comercio,
+        forzada=payload.forzar_confirmacion,
     )

@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "behu-api"
-    app_version: str = "0.3.0"
+    app_version: str = "0.4.0"
     environment: str = "development"
     debug: bool = False
 
@@ -35,10 +35,22 @@ class Settings(BaseSettings):
     cors_origins: str = Field(
         default="http://localhost:3000,http://localhost:8081,http://127.0.0.1:3000"
     )
+    frontend_url: str = Field(default="")
 
     aws_region: str = Field(default="us-east-1")
     aws_kms_key_id: str = Field(default="")
+    aws_access_key_id: str = Field(default="")
+    aws_secret_access_key: str = Field(default="")
     aws_s3_kyc_bucket: str = Field(default="")
+
+    @field_validator("database_url")
+    @classmethod
+    def normalize_database_url(cls, value: str) -> str:
+        if value.startswith("postgres://"):
+            return "postgresql+asyncpg://" + value[len("postgres://") :]
+        if value.startswith("postgresql://") and "+asyncpg" not in value.split("://", 1)[0]:
+            return "postgresql+asyncpg://" + value[len("postgresql://") :]
+        return value
 
     @field_validator("jwt_secret")
     @classmethod
@@ -49,7 +61,11 @@ class Settings(BaseSettings):
 
     @property
     def cors_origin_list(self) -> list[str]:
-        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+        origins = [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+        extra = self.frontend_url.strip().rstrip("/")
+        if extra and extra not in origins:
+            origins.append(extra)
+        return origins
 
     @property
     def is_production(self) -> bool:
