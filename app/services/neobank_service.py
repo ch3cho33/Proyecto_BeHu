@@ -15,7 +15,7 @@ from app.models.user import Usuario
 from app.schemas.transaction import IncomeRequest, MovementRequest
 from app.services.account_service import get_cuenta_usuario
 from app.services.exceptions import AccountNotFound, CardBlocked
-from app.services.ledger_service import transferir
+from app.services.ledger_service import transferir, vuelto_redondeo
 from app.schemas.transaction import SpendRequest
 from app.services.spend_service import simular_compra
 
@@ -55,13 +55,14 @@ def ids_hormiga(movimientos: list[Transaccion]) -> set[UUID]:
     return marcadas
 
 
-async def registrar(db: AsyncSession, usuario: Usuario, payload: MovementRequest) -> Transaccion:
+async def registrar(db: AsyncSession, usuario: Usuario, payload: MovementRequest) -> tuple[Transaccion, Decimal, str | None]:
     if payload.tipo == "INGRESO":
-        return await registrar_ingreso(
+        ingreso = await registrar_ingreso(
             db,
             usuario,
             IncomeRequest(monto=payload.monto, descripcion=payload.notas, bucket=payload.bucket),
         )
+        return ingreso, Decimal("0.00"), None
     compra = SpendRequest(
         monto=payload.monto,
         categoria=_categoria(payload.categoria),
@@ -69,15 +70,54 @@ async def registrar(db: AsyncSession, usuario: Usuario, payload: MovementRequest
         descripcion=payload.notas,
         forzar_confirmacion=payload.forzar_confirmacion,
     )
-    transaccion = await simular_compra(db, usuario, compra)
+    transaccion = await simular_compra(db, usuario, compra, commit=False)
     transaccion.metodo_pago = payload.metodo_pago
     transaccion.notas = payload.notas
     transaccion.recurrencia = payload.recurrencia
     transaccion.bucket = payload.bucket
     transaccion.is_impulsive = bool(payload.forzar_confirmacion)
+    redondeo = Decimal("0.00")
+    meta_nombre: str | None = None
+    if payload.redondear_ahorro:
+        redondeo, meta_nombre = await _aplicar_redondeo(db, usuario, Decimal(payload.monto))
     await db.commit()
     await db.refresh(transaccion)
-    return transaccion
+    return transaccion, redondeo, meta_nombre
+
+
+async def _aplicar_redondeo(db: AsyncSession, usuario: Usuario, monto: Decimal) -> tuple[Decimal, str | None]:
+    from app.models.goal import EstadoMeta, MetaAhorro
+    from app.services.sandbox_accounts import META_EMAIL, obtener_cuenta_sistema
+
+    vuelto = vuelto_redondeo(monto)
+    if vuelto <= 0:
+        return Decimal("0.00"), None
+    cuenta = await get_cuenta_usuario(db, usuario)
+    meta = await db.scalar(
+        select(MetaAhorro)
+        .where(MetaAhorro.cuenta_id == cuenta.id, MetaAhorro.estado == EstadoMeta.ACTIVA.value)
+        .order_by(MetaAhorro.created_at.asc())
+    )
+    if meta is None:
+        return Decimal("0.00"), None
+    restante = Decimal(meta.monto_objetivo) - Decimal(meta.monto_actual)
+    if Decimal(cuenta.saldo) < vuelto or vuelto > restante:
+        return Decimal("0.00"), None
+    boveda = await obtener_cuenta_sistema(db, META_EMAIL)
+    await transferir(
+        db,
+        origen_id=cuenta.id,
+        destino_id=boveda.id,
+        monto=vuelto,
+        iniciada_por_usuario_id=usuario.id,
+        tipo=TipoTransaccion.ABONO_META.value,
+        descripcion=f"Redondeo automático a {meta.nombre}",
+        commit=False,
+    )
+    meta.monto_actual = Decimal(meta.monto_actual) + vuelto
+    if meta.monto_actual >= Decimal(meta.monto_objetivo):
+        meta.estado = EstadoMeta.COMPLETADA.value
+    return vuelto, meta.nombre
 
 
 async def registrar_ingreso(db: AsyncSession, usuario: Usuario, payload: IncomeRequest) -> Transaccion:

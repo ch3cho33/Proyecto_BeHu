@@ -64,7 +64,13 @@ def _razones_impulso(
     return razones
 
 
-async def simular_compra(db: AsyncSession, usuario: Usuario, payload: SpendRequest) -> Transaccion:
+async def simular_compra(
+    db: AsyncSession,
+    usuario: Usuario,
+    payload: SpendRequest,
+    *,
+    commit: bool = True,
+) -> Transaccion:
     await asegurar_catalogo(db)
     cuenta = await get_cuenta_usuario(db, usuario)
     if cuenta.tarjeta_bloqueada:
@@ -115,4 +121,5 @@ async def simular_compra(db: AsyncSession, usuario: Usuario, payload: SpendReque
         categoria=payload.categoria,
         comercio=payload.comercio,
         forzada=payload.forzar_confirmacion,
+        commit=commit,
     )

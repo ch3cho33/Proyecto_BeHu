@@ -46,4 +46,5 @@ class AccountMeResponse(BaseModel):
     """Saldo derivado del ledger + historial visible según el rol JWT."""
 
     account: AccountBalanceResponse
+    llave: str = ""
     movimientos: list[TransactionPublic] = Field(default_factory=list)

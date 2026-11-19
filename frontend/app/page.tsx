@@ -2,7 +2,9 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
+import { KeyChip, MovementDesk, QuickActions, type Draft } from "./flow";
 import { Donut, ScoreGauge, Skeleton, Toasts, VirtualCard, WeekBars, labelCategory, type Toast } from "./ui";
+import { BookOpen, Home, PieChart, Settings as SettingsIcon, Sparkles, Target, Users, Wallet } from "lucide-react";
 
 const API =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
@@ -70,17 +72,17 @@ type Budget = {
   deseos: { objetivo: string; real: string };
   ahorro: { objetivo: string; real: string };
 };
-type Nudge = { mensaje: string; monto: string; categoria: string; metodo: string; bucket: string; notas: string };
+type Nudge = { mensaje: string; draft: Draft };
 
-const NAV: { id: View; label: string; seniorOnly?: boolean }[] = [
-  { id: "inicio", label: "Inicio" },
-  { id: "movimientos", label: "Movimientos" },
-  { id: "presupuesto", label: "50/30/20" },
-  { id: "metas", label: "Metas" },
-  { id: "familia", label: "Familia", seniorOnly: true },
-  { id: "aprende", label: "Aprende" },
-  { id: "mini", label: "BeHu Mini" },
-  { id: "ajustes", label: "Ajustes" },
+const NAV: { id: View; label: string; seniorOnly?: boolean; icon: typeof Home }[] = [
+  { id: "inicio", label: "Inicio", icon: Home },
+  { id: "movimientos", label: "Movimientos", icon: Wallet },
+  { id: "presupuesto", label: "50/30/20", icon: PieChart },
+  { id: "metas", label: "Metas", icon: Target },
+  { id: "familia", label: "Familia", seniorOnly: true, icon: Users },
+  { id: "aprende", label: "Aprende", icon: BookOpen },
+  { id: "mini", label: "BeHu Mini", icon: Sparkles },
+  { id: "ajustes", label: "Ajustes", icon: SettingsIcon },
 ];
 
 function money(value: string | number, currency = "COP") {
@@ -157,6 +159,8 @@ export default function HomePage() {
   const [advice, setAdvice] = useState<Advice | null>(null);
   const [nudge, setNudge] = useState<Nudge | null>(null);
   const [chat, setChat] = useState<{ role: "user" | "mini"; text: string }[]>([]);
+  const [llave, setLlave] = useState("");
+  const [deskRequest, setDeskRequest] = useState<{ action: "gasto" | "ingreso" | "enviar" | "qr"; id: number } | null>(null);
 
   const currency = account?.moneda || user?.moneda_preferida || "COP";
   const nav = NAV.filter((item) => user?.rol === "SENIOR" || !item.seniorOnly);
@@ -170,9 +174,10 @@ export default function HomePage() {
   async function refresh(nextToken: string, nextUser: User) {
     setLoading(true);
     try {
-    const me = await api<{ account: Account; movimientos: Move[] }>("/accounts/me", nextToken);
+    const me = await api<{ account: Account; movimientos: Move[]; llave?: string }>("/accounts/me", nextToken);
     setAccount(me.account);
     setMoves(me.movimientos);
+    setLlave(me.llave || "");
     setScore(await api<Score>("/scoring/me", nextToken).catch(() => null));
     setGoals(await api<Goal[]>("/goals", nextToken).catch(() => []));
     setBudget(await api<Budget>("/budgets/50-30-20", nextToken).catch(() => null));
@@ -224,33 +229,31 @@ export default function HomePage() {
     }
   }
 
-  async function sendMovement(kind: "GASTO" | "INGRESO", form: FormData, force = false) {
-    const monto = String(form.get("monto") || "");
-    const categoria = String(form.get("categoria") || "COMIDA");
-    const metodo = String(form.get("metodo") || "EFECTIVO");
-    const bucket = String(form.get("bucket") || "DESEOS");
-    const notas = String(form.get("notas") || "");
+  async function sendMovement(kind: "GASTO" | "INGRESO", draft: Draft, force = false) {
     try {
-      await api("/transactions", token, {
+      const result = await api<{ redondeo?: string; meta_redondeo?: string | null }>("/transactions", token, {
         method: "POST",
         body: JSON.stringify({
           tipo: kind,
-          monto,
-          categoria,
-          metodo_pago: metodo,
-          bucket,
-          notas,
+          monto: draft.monto,
+          categoria: draft.categoria,
+          metodo_pago: draft.metodo,
+          bucket: draft.bucket,
+          notas: draft.notas,
           recurrencia: "UNICA",
           forzar_confirmacion: force,
+          redondear_ahorro: draft.redondear,
         }),
       });
       setNudge(null);
-      toast("ok", kind === "GASTO" ? "Gasto registrado en el ledger" : "Ingreso simulado registrado");
+      const extra = Number(result.redondeo) > 0 ? ` + ${money(result.redondeo || 0, currency)} enviados a ${result.meta_redondeo} por redondeo automático` : "";
+      toast("ok", (kind === "GASTO" ? "Compra registrada" : "Ingreso simulado registrado") + extra);
       if (token && user) await refresh(token, user);
+      return result;
     } catch (err) {
       const payload = (err as Error & { payload?: { code?: string; mensaje?: string } }).payload;
       if (payload?.code === "GASTO_IMPULSIVO") {
-        setNudge({ mensaje: payload.mensaje || "Gasto impulsivo", monto, categoria, metodo, bucket, notas });
+        setNudge({ mensaje: payload.mensaje || "Gasto impulsivo", draft });
         return;
       }
       toast("danger", err instanceof Error ? err.message : "No se pudo registrar");
@@ -331,7 +334,7 @@ export default function HomePage() {
         <p className="px-3 text-lg font-semibold">BeHu</p>
         <nav className="mt-8 space-y-1">
           {nav.map((item) => (
-            <button key={item.id} className={`h-10 w-full rounded-card px-3 text-left text-sm ${view === item.id ? "bg-surface-strong" : "text-muted hover:bg-surface-hover"}`} onClick={() => setView(item.id)} type="button">{item.label}</button>
+            <button key={item.id} className={`flex h-10 w-full items-center gap-2 rounded-card px-3 text-left text-sm ${view === item.id ? "bg-surface-strong" : "text-muted hover:bg-surface-hover"}`} onClick={() => setView(item.id)} type="button"><item.icon size={16} />{item.label}</button>
           ))}
         </nav>
         <div className="mt-auto panel p-3">
@@ -345,7 +348,11 @@ export default function HomePage() {
         {loading && view === "inicio" ? <Skeleton /> : null}
         {view === "inicio" && !loading && (
           <section className="space-y-4">
-            <h1 className="text-2xl font-semibold">Hola, {user.nombres}</h1>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h1 className="text-2xl font-semibold">Hola, {user.nombres}</h1>
+              <KeyChip llave={llave} onCopy={() => { navigator.clipboard.writeText(`@${llave}`); toast("ok", "Llave copiada"); }} />
+            </div>
+            <QuickActions onOpen={(action) => { setDeskRequest({ action, id: Date.now() }); setView("movimientos"); }} />
             {invites.map((invite) => (
               <div key={invite.id} className="panel border-primary p-4">
                 <p className="text-sm font-semibold">Solicitud familiar de {invite.senior_nombre}</p>
@@ -376,7 +383,27 @@ export default function HomePage() {
           </section>
         )}
         {view === "movimientos" && (
-          <MovementForm currency={currency} onSubmit={sendMovement} moves={moves} />
+          <MovementDesk
+            moves={moves}
+            currency={currency}
+            llave={llave}
+            juniors={juniors}
+            onSpend={(draft, force) => sendMovement("GASTO", draft, Boolean(force))}
+            onIncome={(monto) => sendMovement("INGRESO", { monto, categoria: "COMIDA", metodo: "TRANSFERENCIA", bucket: "AHORRO", notas: "Ingreso", redondear: false })}
+            onSendBudget={async (cuentaId, monto) => {
+              await api("/transfers/budget", token, { method: "POST", body: JSON.stringify({ cuenta_junior_id: cuentaId, monto, descripcion: "Mesada rápida" }) });
+              toast("ok", "Mesada enviada");
+              if (user) await refresh(token, user);
+            }}
+            onSendKey={async (destino, monto) => {
+              await api("/transfers/key", token, { method: "POST", body: JSON.stringify({ llave: destino, monto, descripcion: "Envío por llave BeHu" }) });
+              toast("ok", "Envío por llave registrado");
+              if (user) await refresh(token, user);
+            }}
+            onReceipt={(id) => api(`/transactions/${id}/receipt`, token)}
+            onCopy={(text) => { navigator.clipboard.writeText(text); toast("ok", "Llave copiada"); }}
+            request={deskRequest}
+          />
         )}
         {view === "ajustes" && (
           <Settings
@@ -433,7 +460,7 @@ export default function HomePage() {
       </main>
       <nav className="fixed inset-x-0 bottom-0 grid grid-cols-4 border-t border-line bg-elevated md:hidden">
         {nav.slice(0, 4).map((item) => (
-          <button key={item.id} className="h-14 text-xs text-muted" type="button" onClick={() => setView(item.id)}>{item.label}</button>
+          <button key={item.id} className="flex h-14 flex-col items-center justify-center gap-1 text-[10px] text-muted" type="button" onClick={() => setView(item.id)}><item.icon size={16} />{item.label}</button>
         ))}
       </nav>
       <Toasts items={toasts} />
@@ -464,7 +491,7 @@ export default function HomePage() {
               <button
                 className="h-10 flex-1 rounded-card bg-warning font-semibold text-bg"
                 type="button"
-                onClick={() => sendMovement("GASTO", formDataFrom(nudge), true)}
+                onClick={() => sendMovement("GASTO", nudge.draft, true)}
               >Confirmar de todas formas</button>
             </div>
           </div>
@@ -472,16 +499,6 @@ export default function HomePage() {
       )}
     </div>
   );
-}
-
-function formDataFrom(nudge: Nudge) {
-  const form = new FormData();
-  form.set("monto", nudge.monto);
-  form.set("categoria", nudge.categoria);
-  form.set("metodo", nudge.metodo);
-  form.set("bucket", nudge.bucket);
-  form.set("notas", nudge.notas);
-  return form;
 }
 
 function Kpi({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone?: string }) {
@@ -501,69 +518,6 @@ function Bar({ label, real, goal }: { label: string; real: string; goal: string 
       <div className="flex justify-between text-sm"><span>{label}</span><span className="text-muted">{real} / {goal}</span></div>
       <div className="mt-3 h-2 rounded-full bg-surface-strong"><div className="h-2 rounded-full bg-primary" style={{ width: `${width}%` }} /></div>
     </article>
-  );
-}
-
-function MovementForm({ currency, moves, onSubmit }: { currency: string; moves: Move[]; onSubmit: (kind: "GASTO" | "INGRESO", form: FormData) => void }) {
-  const [kind, setKind] = useState<"GASTO" | "INGRESO">("GASTO");
-  const [filter, setFilter] = useState("Todos");
-  const [query, setQuery] = useState("");
-  const visible = moves.filter((move) => {
-    const text = `${move.descripcion || ""} ${move.comercio || ""} ${move.categoria || ""}`.toLowerCase();
-    if (query && !text.includes(query.toLowerCase())) return false;
-    if (filter === "Ingresos") return move.tipo === "INGRESO" || move.tipo === "ASIGNACION_PRESUPUESTO";
-    if (filter === "Gastos") return move.tipo === "COMPRA";
-    if (filter === "Impulsivos") return Boolean(move.is_impulsive);
-    return true;
-  });
-  return (
-    <section className="space-y-4">
-      <h1 className="text-2xl font-semibold">Movimientos</h1>
-      <form className="panel space-y-3 p-4" onSubmit={(event) => { event.preventDefault(); onSubmit(kind, new FormData(event.currentTarget)); }}>
-        <div className="grid grid-cols-2 gap-2">
-          <button className={kind === "GASTO" ? "btn-primary h-10" : "btn-secondary h-10"} type="button" onClick={() => setKind("GASTO")}>Gasto</button>
-          <button className={kind === "INGRESO" ? "btn-primary h-10" : "btn-secondary h-10"} type="button" onClick={() => setKind("INGRESO")}>Ingreso</button>
-        </div>
-        <input name="monto" className="h-11 w-full rounded-card border border-line bg-bg px-3" placeholder={`Monto ${currency}`} required />
-        <div className="flex flex-wrap gap-2 text-sm">
-          {["COMIDA", "ENTRETENIMIENTO", "TRANSPORTE", "EDUCACION", "ROPA"].map((item) => (
-            <label key={item} className="rounded-card border border-line px-3 py-2"><input className="mr-2" type="radio" name="categoria" value={item} defaultChecked={item === "COMIDA"} />{item}</label>
-          ))}
-        </div>
-        <select name="metodo" className="h-11 w-full rounded-card border border-line bg-bg px-3">
-          {["EFECTIVO", "TARJETA_DEBITO", "TARJETA_CREDITO", "TRANSFERENCIA"].map((item) => <option key={item}>{item}</option>)}
-        </select>
-        <select name="bucket" className="h-11 w-full rounded-card border border-line bg-bg px-3">
-          <option value="NECESIDADES">Necesidades</option>
-          <option value="DESEOS">Deseos</option>
-          <option value="AHORRO">Ahorro</option>
-        </select>
-        <input name="notas" className="h-11 w-full rounded-card border border-line bg-bg px-3" placeholder="Nota" />
-        <button className="btn-primary h-11 w-full" type="submit">Registrar</button>
-      </form>
-      <div className="flex flex-wrap gap-2">
-        {["Todos", "Ingresos", "Gastos", "Impulsivos"].map((item) => (
-          <button key={item} className={filter === item ? "btn-primary h-8 px-3 text-xs" : "btn-secondary h-8 px-3 text-xs"} type="button" onClick={() => setFilter(item)}>{item}</button>
-        ))}
-        <input className="h-8 flex-1 rounded-card border border-line bg-surface px-3 text-sm" placeholder="Buscar comercio o nota" value={query} onChange={(event) => setQuery(event.target.value)} />
-      </div>
-      <ul className="space-y-2">
-        {visible.length === 0 && <li className="panel p-4 text-sm text-muted">No hay movimientos con ese filtro.</li>}
-        {visible.slice(0, 12).map((move) => (
-          <li key={move.id} className="panel flex items-center justify-between gap-3 p-3 text-sm">
-            <span>
-              {move.descripcion || move.comercio || move.tipo}
-              {move.is_impulsive ? " · impulsivo" : ""}
-              <span className="mt-1 flex gap-1 text-xs text-dim">
-                {move.metodo_pago && <em className="rounded-behu border border-line px-1.5 py-0.5 not-italic">{move.metodo_pago}</em>}
-                {move.bucket && <em className="rounded-behu border border-line px-1.5 py-0.5 not-italic">{move.bucket}</em>}
-              </span>
-            </span>
-            <span>{money(move.monto, currency)}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }
 

@@ -42,6 +42,7 @@ class Usuario(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         default=KycStatus.PENDING.value,
     )
     moneda_preferida: Mapped[str] = mapped_column(String(3), nullable=False, default="COP")
+    llave_behu: Mapped[str | None] = mapped_column(String(80), unique=True, nullable=True)
 
     cuenta: Mapped[Cuenta | None] = relationship(
         "Cuenta",

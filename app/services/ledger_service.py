@@ -65,6 +65,7 @@ async def transferir(
     notas: str | None = None,
     recurrencia: str | None = None,
     bucket: str | None = None,
+    commit: bool = True,
 ) -> Transaccion:
     """Débito origen / crédito destino en una sola transacción SQL."""
     monto = Decimal(monto).quantize(Decimal("0.01"))
@@ -127,6 +128,16 @@ async def transferir(
     destino.saldo = Decimal(destino.saldo) + monto
     transaccion.estado = EstadoTransaccion.COMPLETADA.value
     await db.flush()
-    await db.commit()
-    await db.refresh(transaccion)
+    if commit:
+        await db.commit()
+        await db.refresh(transaccion)
     return transaccion
+
+
+def vuelto_redondeo(monto: Decimal, paso: Decimal = Decimal("5000")) -> Decimal:
+    """Vuelto hasta el siguiente múltiplo. 13.400 con paso 5.000 deja 1.600."""
+    monto = Decimal(monto).quantize(Decimal("0.01"))
+    resto = monto % paso
+    if resto == 0:
+        return Decimal("0.00")
+    return (paso - resto).quantize(Decimal("0.01"))

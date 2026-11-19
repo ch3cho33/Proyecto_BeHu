@@ -2,6 +2,14 @@
 
 Todos los cambios relevantes del backend BeHu se registran aquí.
 
+## [3.0.0] — 2026-11-19 — Flujo de app
+
+### Added
+
+- Inicio y Movimientos pasan a acciones rápidas, drawer y lista agrupada por fecha, con iconos y comprobante de partida doble.
+- El gasto puede redondear al siguiente múltiplo de 5.000 y abonar ese vuelto a la meta activa en la misma transacción. 13.400 deja 1.600 en la meta.
+- Cada cuenta tiene llave `@nombre.behu`, QR para cobrar y envío por llave. El extracto filtrado se descarga en CSV.
+
 ## [2.1.0] — 2026-11-19 — Acabado de producto
 
 ### Added

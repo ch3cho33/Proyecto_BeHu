@@ -201,3 +201,58 @@ async def test_invitation_consent_freeze_and_mini(client: httpx.AsyncClient):
     assert limites.status_code == 200, limites.text
     propio = (await client.get("/api/v1/accounts/me", headers=junior)).json()["account"]
     assert Decimal(propio["limite_gasto_diario"]) == Decimal("12000")
+
+
+@pytest.mark.asyncio
+async def test_roundup_goes_to_goal(client: httpx.AsyncClient):
+    senior = await _login(client, SENIOR_EMAIL, SENIOR_PASSWORD)
+    creado = await client.post(
+        "/api/v1/supervision/create-junior",
+        headers=senior,
+        json={
+            "email": "roundup@behu.test",
+            "password": "BeHuJunior3!",
+            "nombres": "Ronda",
+            "apellidos": "Ahorro",
+            "initial_budget": "80000",
+            "daily_limit": "200000",
+            "weekly_limit": "400000",
+            "monthly_limit": "800000",
+        },
+    )
+    assert creado.status_code == 201, creado.text
+    junior = await _login(client, "roundup@behu.test", "BeHuJunior3!")
+    meta = await client.post(
+        "/api/v1/goals",
+        headers=junior,
+        json={
+            "nombre": "Viaje corto",
+            "monto_objetivo": "20000",
+            "fecha_limite": (date.today() + timedelta(days=20)).isoformat(),
+        },
+    )
+    assert meta.status_code == 201, meta.text
+    compra = await client.post(
+        "/api/v1/transactions",
+        headers=junior,
+        json={
+            "tipo": "GASTO",
+            "monto": "13400",
+            "categoria": "COMIDA",
+            "metodo_pago": "TARJETA_DEBITO",
+            "notas": "Snack",
+            "bucket": "DESEOS",
+            "redondear_ahorro": True,
+        },
+    )
+    assert compra.status_code == 201, compra.text
+    assert Decimal(compra.json()["redondeo"]) == Decimal("1600.00")
+    assert compra.json()["meta_redondeo"] == "Viaje corto"
+    metas = await client.get("/api/v1/goals", headers=junior)
+    assert Decimal(metas.json()[0]["monto_actual"]) == Decimal("1600.00")
+    perfil = await client.get("/api/v1/accounts/me", headers=junior)
+    assert perfil.json()["llave"].endswith(".behu")
+    recibo = await client.get(f"/api/v1/transactions/{compra.json()['id']}/receipt", headers=junior)
+    assert recibo.status_code == 200, recibo.text
+    naturalezas = {linea["naturaleza"] for linea in recibo.json()["asientos"]}
+    assert naturalezas == {"DEBITO", "CREDITO"}

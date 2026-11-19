@@ -54,6 +54,9 @@ async def snapshot_cuenta(db: AsyncSession, usuario: Usuario) -> AccountMeRespon
     )
     saldo_congelado = Decimal(str(congelado or 0))
     movimientos = await _movimientos_visibles(db, cuenta)
+    from app.services.llave_service import asegurar_llave
+
+    llave = await asegurar_llave(db, usuario)
     return AccountMeResponse(
         account=AccountBalanceResponse(
             account_id=cuenta.id,
@@ -68,6 +71,7 @@ async def snapshot_cuenta(db: AsyncSession, usuario: Usuario) -> AccountMeRespon
             saldo_disponible=saldo_ledger,
             puede_ver_transferencias_globales=cuenta.puede_ver_transferencias_globales(),
         ),
+        llave=llave,
         movimientos=movimientos,
     )
 

@@ -63,7 +63,10 @@ def _add_v2_columns(connection) -> None:
     dialect = connection.dialect.name
     flag = "BOOLEAN NOT NULL DEFAULT false" if dialect != "sqlite" else "BOOLEAN NOT NULL DEFAULT 0"
     plan = {
-        "usuario": [("moneda_preferida", "VARCHAR(3) NOT NULL DEFAULT 'COP'")],
+        "usuario": [
+            ("moneda_preferida", "VARCHAR(3) NOT NULL DEFAULT 'COP'"),
+            ("llave_behu", "VARCHAR(80)"),
+        ],
         "cuenta": [("tarjeta_bloqueada", flag)],
         "transaccion": [
             ("metodo_pago", "VARCHAR(32)"),
