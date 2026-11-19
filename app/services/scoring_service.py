@@ -75,7 +75,7 @@ async def calcular_score(db: AsyncSession, usuario: Usuario) -> ScoreResponse:
         .where(
             Transaccion.iniciada_por_usuario_id == usuario.id,
             Transaccion.tipo == TipoTransaccion.COMPRA.value,
-            Transaccion.forzada.is_(True),
+            (Transaccion.forzada.is_(True)) | (Transaccion.is_impulsive.is_(True)),
             Transaccion.estado == EstadoTransaccion.COMPLETADA.value,
             Transaccion.created_at >= hace_30,
         )

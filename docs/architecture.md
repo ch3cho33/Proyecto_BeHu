@@ -200,3 +200,20 @@ La PWA vive en `frontend/public/manifest.json`. CORS acepta `CORS_ORIGINS` y `FR
 En producción el cliente usa la ruta relativa `/api/v1`, así que el navegador no cruza orígenes. En `next dev` sigue llamando a `http://127.0.0.1:8000/api/v1`. FastAPI ya expone ese prefijo, y Vercel reenvía la ruta original sin recortarla.
 
 La base del servicio `app` es PostgreSQL en Neon o Supabase. MongoDB Atlas guarda hábitos y recomendaciones. SQLite no sirve en Vercel: el disco es efímero. `AUTO_SEED_SANDBOX=true` corre el seed idempotente en el lifespan. La guía está en `docs/deployment.md`.
+
+## 13. v2.0 — neobanco familiar
+
+El despliegue sigue siendo un solo FastAPI. Los dominios nuevos viven en servicios propios y no tocan la partida doble:
+
+| Dominio | Servicio | Contrato |
+| --- | --- | --- |
+| Consentimiento | `invitation_service` | `POST /supervision/invite`, `POST /supervision/create-junior`, `GET /supervision/invitations`, `POST /supervision/invitations/{id}/respond` |
+| Auditoría parental | `invitation_service` | `GET /supervision/juniors/{id}/activity`, `PATCH /supervision/juniors/{id}/card-status` |
+| Neobanco | `neobank_service` | `POST /transactions`, `POST /transactions/income`, `GET /budgets/50-30-20` |
+| BeHu Mini | `behu_mini_ai` | `POST /ai/consult`, `GET /ai/parental-alerts` |
+
+`FamilyInvitation` nace en `PENDING`. Aceptar crea `SupervisionCuenta`, copia límites y mueve la mesada con `transferir()` (débito Senior, crédito Junior). Rechazar no mueve dinero.
+
+BeHu Mini no llama a un LLM. Lee saldo, metas, límites y buckets. Tres compras de comida u ocio de hasta 80.000 en 48 horas son gasto hormiga. Una compra con `forzar_confirmacion=true` queda `is_impulsive=true` y `forzada=true`, resta Score y aparece en la alerta del Senior.
+
+El arranque agrega con `ALTER TABLE` las columnas v2 si Neon ya tenía el esquema 1.0. No borra filas.

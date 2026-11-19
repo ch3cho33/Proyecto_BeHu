@@ -55,8 +55,37 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
+def _add_v2_columns(connection) -> None:
+    """Suma columnas v2 en Neon o SQLite ya creados. create_all no altera tablas viejas."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(connection)
+    dialect = connection.dialect.name
+    flag = "BOOLEAN NOT NULL DEFAULT false" if dialect != "sqlite" else "BOOLEAN NOT NULL DEFAULT 0"
+    plan = {
+        "usuario": [("moneda_preferida", "VARCHAR(3) NOT NULL DEFAULT 'COP'")],
+        "cuenta": [("tarjeta_bloqueada", flag)],
+        "transaccion": [
+            ("metodo_pago", "VARCHAR(32)"),
+            ("notas", "VARCHAR(280)"),
+            ("recurrencia", "VARCHAR(20)"),
+            ("bucket", "VARCHAR(20)"),
+            ("is_impulsive", flag),
+        ],
+    }
+    for table, columns in plan.items():
+        if not inspector.has_table(table):
+            continue
+        present = {column["name"] for column in inspector.get_columns(table)}
+        for name, ddl in columns:
+            if name in present:
+                continue
+            connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
+
+
 async def create_schema() -> None:
     from app.models import Base
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(_add_v2_columns)

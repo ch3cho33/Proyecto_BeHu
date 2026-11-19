@@ -3,13 +3,13 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "BeHu",
-  description: "Sandbox fintech de cuentas parentales, score y Academia BeHu",
+  description: "Neobanco familiar BeHu. Ledger de partida doble, control parental y BeHu Mini.",
   applicationName: "BeHu",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     title: "BeHu",
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
   },
   icons: {
     icon: [
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1f7a4d",
+  themeColor: "#090D16",
   width: "device-width",
   initialScale: 1,
 };
@@ -29,7 +29,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body className="min-h-screen antialiased">{children}</body>
+      <body className="min-h-screen bg-bg text-ink antialiased">{children}</body>
     </html>
   );
 }

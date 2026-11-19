@@ -22,6 +22,7 @@ class TipoTransaccion(StrEnum):
     ASIGNACION_PRESUPUESTO = "ASIGNACION_PRESUPUESTO"
     APERTURA_SANDBOX = "APERTURA_SANDBOX"
     COMPRA = "COMPRA"
+    INGRESO = "INGRESO"
     ABONO_META = "ABONO_META"
     REVERSO = "REVERSO"
 
@@ -64,6 +65,15 @@ class Transaccion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
         default=False,
     )
+    is_impulsive: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+    metodo_pago: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    notas: Mapped[str | None] = mapped_column(String(280), nullable=True)
+    recurrencia: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    bucket: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     iniciada_por: Mapped[Usuario] = relationship("Usuario")
     asientos: Mapped[list[LedgerContable]] = relationship(

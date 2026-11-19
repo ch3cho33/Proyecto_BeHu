@@ -47,6 +47,7 @@ async def register(db: AsyncSession, payload: UserRegisterRequest) -> AuthSessio
         apellidos=payload.apellidos.strip(),
         rol=payload.rol,
         telefono=payload.telefono,
+        moneda_preferida=payload.moneda,
     )
     db.add(user)
     await db.flush()
@@ -54,7 +55,7 @@ async def register(db: AsyncSession, payload: UserRegisterRequest) -> AuthSessio
     cuenta_cls: type[CuentaSenior] | type[CuentaJunior] = (
         CuentaSenior if payload.rol == "SENIOR" else CuentaJunior
     )
-    db.add(cuenta_cls(usuario_id=user.id, tipo=payload.rol))
+    db.add(cuenta_cls(usuario_id=user.id, tipo=payload.rol, moneda=payload.moneda))
     await db.commit()
     await db.refresh(user)
     return _build_session(user)

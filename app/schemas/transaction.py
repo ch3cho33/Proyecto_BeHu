@@ -17,6 +17,31 @@ class SpendRequest(BaseModel):
     forzar_confirmacion: bool = False
 
 
+class MovementRequest(BaseModel):
+    """Ingreso o gasto del neobanco. El gasto pasa por el nudge anti-impulsos."""
+
+    tipo: str = Field(pattern="^(GASTO|INGRESO)$")
+    monto: Decimal = Field(gt=0)
+    categoria: str = Field(
+        default="COMIDA",
+        pattern="^(COMIDA|ENTRETENIMIENTO|TRANSPORTE|EDUCACION|ROPA|OCIO)$",
+    )
+    metodo_pago: str = Field(
+        default="EFECTIVO",
+        pattern="^(EFECTIVO|TARJETA_DEBITO|TARJETA_CREDITO|TRANSFERENCIA)$",
+    )
+    notas: str | None = Field(default=None, max_length=280)
+    recurrencia: str = Field(default="UNICA", pattern="^(UNICA|SEMANAL|MENSUAL)$")
+    bucket: str = Field(default="DESEOS", pattern="^(NECESIDADES|DESEOS|AHORRO)$")
+    forzar_confirmacion: bool = False
+
+
+class IncomeRequest(BaseModel):
+    monto: Decimal = Field(gt=0)
+    descripcion: str | None = Field(default=None, max_length=280)
+    bucket: str = Field(default="AHORRO", pattern="^(NECESIDADES|DESEOS|AHORRO)$")
+
+
 class BudgetTransferRequest(BaseModel):
     """Asignación de presupuesto parental (sandbox, no ACH)."""
 
@@ -43,4 +68,10 @@ class TransactionPublic(BaseModel):
     categoria: str | None = None
     comercio: str | None = None
     es_transferencia_global: bool
+    forzada: bool = False
+    is_impulsive: bool = False
+    metodo_pago: str | None = None
+    notas: str | None = None
+    recurrencia: str | None = None
+    bucket: str | None = None
     created_at: datetime

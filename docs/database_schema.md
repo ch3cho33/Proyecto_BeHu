@@ -233,3 +233,9 @@ Logs y contexto de recomendaciones.
 
 - Perfil `JUNIOR`: consulta saldo y límites de **su** cuenta; no lista `transaccion.es_transferencia_global = true`.
 - Perfil `SENIOR`: saldo propio, cuentas junior vinculadas vía `supervision_cuenta.estado = ACTIVA`, y movimientos de supervisión/presupuesto.
+
+## 4. v2.0
+
+`family_invitation`: `senior_id`, `junior_id`, `initial_budget`, `daily_limit`, `weekly_limit`, `monthly_limit`, `estado` (`PENDING` | `ACCEPTED` | `REJECTED`).
+
+`transaccion` suma `metodo_pago`, `notas`, `recurrencia`, `bucket` (`NECESIDADES` | `DESEOS` | `AHORRO`) e `is_impulsive`. `cuenta.tarjeta_bloqueada` bloquea el gasto Junior sin cerrar la cuenta. `usuario.moneda_preferida` guarda COP, USD, EUR, MXN o PEN. El arranque hace `ALTER TABLE` si esas columnas faltan.

@@ -12,7 +12,7 @@ from app.models.transaction import EstadoTransaccion, TipoTransaccion, Transacci
 from app.models.user import Usuario
 from app.schemas.transaction import SpendRequest
 from app.services.account_service import get_cuenta_usuario
-from app.services.exceptions import ImpulsiveSpend, InsufficientFunds
+from app.services.exceptions import CardBlocked, ImpulsiveSpend, InsufficientFunds
 from app.services.ledger_service import transferir
 from app.services.sandbox_accounts import MERCHANT_EMAIL, obtener_cuenta_sistema
 
@@ -67,6 +67,8 @@ def _razones_impulso(
 async def simular_compra(db: AsyncSession, usuario: Usuario, payload: SpendRequest) -> Transaccion:
     await asegurar_catalogo(db)
     cuenta = await get_cuenta_usuario(db, usuario)
+    if cuenta.tarjeta_bloqueada:
+        raise CardBlocked("La tarjeta de este Junior está bloqueada por el acudiente")
     monto = Decimal(payload.monto).quantize(Decimal("0.01"))
     saldo = Decimal(cuenta.saldo)
     if saldo < monto:

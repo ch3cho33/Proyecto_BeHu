@@ -34,6 +34,9 @@ class AccountBalanceResponse(BaseModel):
     limite_gasto_diario: Decimal | None = None
     limite_gasto_semanal: Decimal | None = None
     limite_gasto_mensual: Decimal | None = None
+    tarjeta_bloqueada: bool = False
+    saldo_congelado: Decimal = Decimal("0.00")
+    saldo_disponible: Decimal = Decimal("0.00")
     puede_ver_transferencias_globales: bool = Field(
         description="False para perfiles JUNIOR",
     )

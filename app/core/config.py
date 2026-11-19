@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "behu-api"
-    app_version: str = "1.0.0"
+    app_version: str = "2.0.0"
     environment: str = "development"
     debug: bool = False
 

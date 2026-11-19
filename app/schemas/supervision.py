@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.user import SandboxEmail
+
 
 class SupervisionCreateRequest(BaseModel):
     cuenta_junior_id: UUID
@@ -48,3 +50,53 @@ class SupervisionPublic(BaseModel):
     alerta_desvinculo: bool
     confirmado_desvinculo_en: datetime | None = None
     created_at: datetime
+
+
+class InviteRequest(BaseModel):
+    email: SandboxEmail
+    initial_budget: Decimal = Field(ge=0)
+    daily_limit: Decimal = Field(ge=0)
+    weekly_limit: Decimal = Field(ge=0)
+    monthly_limit: Decimal = Field(ge=0)
+
+
+class CreateJuniorRequest(InviteRequest):
+    nombres: str = Field(min_length=1, max_length=120)
+    apellidos: str = Field(default="Junior", min_length=1, max_length=120)
+    password: str = Field(min_length=8, max_length=72)
+
+
+class InvitationPublic(BaseModel):
+    id: UUID
+    senior_id: UUID
+    junior_id: UUID
+    senior_nombre: str
+    initial_budget: Decimal
+    daily_limit: Decimal
+    weekly_limit: Decimal
+    monthly_limit: Decimal
+    estado: str
+
+
+class InvitationRespondRequest(BaseModel):
+    accept: bool
+
+
+class ActivityItem(BaseModel):
+    id: UUID
+    categoria: str | None = None
+    metodo_pago: str | None = None
+    fecha: datetime
+    monto: Decimal
+    descripcion: str | None = None
+    is_impulsive: bool = False
+    es_hormiga: bool = False
+
+
+class CardStatusRequest(BaseModel):
+    bloqueada: bool
+
+
+class CardStatusResponse(BaseModel):
+    cuenta_junior_id: UUID
+    tarjeta_bloqueada: bool

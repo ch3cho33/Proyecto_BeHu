@@ -2,10 +2,13 @@
 
 from uuid import UUID
 
-from sqlalchemy import select
+from decimal import Decimal
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Cuenta
+from app.models.goal import EstadoMeta, MetaAhorro
 from app.models.ledger import LedgerContable
 from app.models.transaction import Transaccion
 from app.models.user import Usuario
@@ -43,6 +46,13 @@ async def _movimientos_visibles(
 async def snapshot_cuenta(db: AsyncSession, usuario: Usuario) -> AccountMeResponse:
     cuenta = await get_cuenta_usuario(db, usuario)
     saldo_ledger = await saldo_desde_ledger(db, cuenta.id)
+    congelado = await db.scalar(
+        select(func.coalesce(func.sum(MetaAhorro.monto_actual), 0)).where(
+            MetaAhorro.cuenta_id == cuenta.id,
+            MetaAhorro.estado != EstadoMeta.CANCELADA.value,
+        )
+    )
+    saldo_congelado = Decimal(str(congelado or 0))
     movimientos = await _movimientos_visibles(db, cuenta)
     return AccountMeResponse(
         account=AccountBalanceResponse(
@@ -53,6 +63,9 @@ async def snapshot_cuenta(db: AsyncSession, usuario: Usuario) -> AccountMeRespon
             limite_gasto_diario=cuenta.limite_gasto_diario,
             limite_gasto_semanal=cuenta.limite_gasto_semanal,
             limite_gasto_mensual=cuenta.limite_gasto_mensual,
+            tarjeta_bloqueada=cuenta.tarjeta_bloqueada,
+            saldo_congelado=saldo_congelado,
+            saldo_disponible=saldo_ledger,
             puede_ver_transferencias_globales=cuenta.puede_ver_transferencias_globales(),
         ),
         movimientos=movimientos,

@@ -2,6 +2,16 @@
 
 Todos los cambios relevantes del backend BeHu se registran aquí.
 
+## [2.0.0] — 2026-11-19 — Neobanco familiar
+
+### Added
+
+- Invitación familiar con consentimiento: `FamilyInvitation` queda `PENDING` hasta que el Junior acepta. Un Senior no se vincula. Un Junior con núcleo activo responde 409. Si el correo no existe, `create-junior` crea la cuenta y la mesada en el ledger.
+- Gastos e ingresos con método de pago, nota, recurrencia y bucket 50/30/20. El nudge `GASTO_IMPULSIVO` marca `is_impulsive` y baja el Score. El Senior puede bloquear la tarjeta Junior.
+- BeHu Mini detecta gastos hormiga (3 compras pequeñas de comida u ocio en 48 h), publica alertas parentales y responde con saldo líquido, saldo congelado y la regla 50/30/20.
+- PWA en dark mode (Linear / Vercel): sidebar, barra inferior, dashboard, nudge, familia, academia y chat.
+- `pytest` cubre consentimiento, saldo congelado, hormiga y la respuesta contextual.
+
 ## [1.0.4] — 2026-11-19 — SQLite en /tmp
 
 ### Fixed

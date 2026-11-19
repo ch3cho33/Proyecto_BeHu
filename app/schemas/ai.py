@@ -17,6 +17,14 @@ class AiConsultResponse(BaseModel):
     created_at: str
 
 
+class ParentalAlert(BaseModel):
+    junior_id: str
+    junior_nombre: str
+    tipo: str
+    mensaje: str
+    sugerencia: str
+
+
 class AiHistoryItem(BaseModel):
     id: str
     rol: str

@@ -111,6 +111,29 @@ async def consultar(db: AsyncSession, usuario: Usuario, pregunta: str | None) ->
         recomendaciones = _consejo_senior(saldo, juniors_vinculados)
         enfoque = "excedente_familiar_colombia"
 
+    from app.services.neobank_service import resumen_503020
+
+    cuadro = await resumen_503020(db, usuario)
+    congelado = Decimal(cuadro["saldo_congelado"])
+    recomendaciones.append(
+        f"Saldo líquido {saldo:.0f} {cuenta.moneda} y saldo congelado en metas {congelado:.0f}. "
+        f"Regla 50/30/20 sobre ingresos de {cuadro['ingresos']}: "
+        f"necesidades {cuadro['necesidades']['real']} de {cuadro['necesidades']['objetivo']}, "
+        f"deseos {cuadro['deseos']['real']} de {cuadro['deseos']['objetivo']}, "
+        f"ahorro {cuadro['ahorro']['real']} de {cuadro['ahorro']['objetivo']}."
+    )
+    if usuario.rol == "JUNIOR":
+        abono = max(Decimal("5000"), (saldo * Decimal("0.10")).quantize(Decimal("1")))
+        recomendaciones.append(
+            f"Reto de ahorro: abona {abono:.0f} {cuenta.moneda} a tu meta activa. "
+            "Si ves suscripciones o gastos hormiga de comida y ocio, congela ese monto antes de la próxima compra."
+        )
+    else:
+        recomendaciones.append(
+            "Fondo de emergencia: reserva de 3 a 6 meses de gastos del hogar. "
+            "El excedente que quede después de esa reserva puede ir a un CDT o a un fondo conservador de renta fija."
+        )
+
     contexto = {
         "saldo": f"{saldo:.2f}",
         "moneda": cuenta.moneda,
@@ -149,6 +172,69 @@ async def consultar(db: AsyncSession, usuario: Usuario, pregunta: str | None) ->
         fuente=fuente,
         created_at=documento["created_at"],
     )
+
+
+async def alertas_parentales(db: AsyncSession, usuario: Usuario) -> list:
+    from app.schemas.ai import ParentalAlert
+    from app.models.supervision import EstadoSupervision, SupervisionCuenta
+    from app.services.account_service import get_cuenta_usuario
+    from app.services.neobank_service import ids_hormiga
+
+    if usuario.rol != "SENIOR":
+        return []
+    cuenta = await get_cuenta_usuario(db, usuario)
+    vinculos = (
+        await db.scalars(
+            select(SupervisionCuenta).where(
+                SupervisionCuenta.cuenta_senior_id == cuenta.id,
+                SupervisionCuenta.estado == EstadoSupervision.ACTIVA.value,
+            )
+        )
+    ).all()
+    alertas: list[ParentalAlert] = []
+    for vinculo in vinculos:
+        from app.models.account import Cuenta
+
+        junior_cuenta = await db.get(Cuenta, vinculo.cuenta_junior_id)
+        if junior_cuenta is None:
+            continue
+        junior = await db.get(Usuario, junior_cuenta.usuario_id)
+        nombre = f"{junior.nombres} {junior.apellidos}".strip() if junior else "Junior"
+        compras = list(
+            (
+                await db.scalars(
+                    select(Transaccion)
+                    .where(
+                        Transaccion.iniciada_por_usuario_id == junior_cuenta.usuario_id,
+                        Transaccion.tipo == TipoTransaccion.COMPRA.value,
+                        Transaccion.estado == "COMPLETADA",
+                    )
+                    .order_by(Transaccion.created_at.desc())
+                    .limit(40)
+                )
+            ).all()
+        )
+        if ids_hormiga(compras):
+            alertas.append(
+                ParentalAlert(
+                    junior_id=str(junior_cuenta.id),
+                    junior_nombre=nombre,
+                    tipo="GASTO_HORMIGA",
+                    mensaje=f"{nombre} acumula compras pequeñas de comida u ocio en menos de 48 horas.",
+                    sugerencia="Baja el límite diario o creen una meta conjunta para apartar ese monto.",
+                )
+            )
+        if any(tx.is_impulsive or tx.forzada for tx in compras):
+            alertas.append(
+                ParentalAlert(
+                    junior_id=str(junior_cuenta.id),
+                    junior_nombre=nombre,
+                    tipo="GASTO_IMPULSIVO",
+                    mensaje=f"{nombre} confirmó al menos una compra que BeHu Mini había frenado.",
+                    sugerencia="Revisa el movimiento y, si se repite, bloquea la tarjeta desde Gestión familiar.",
+                )
+            )
+    return alertas
 
 
 async def listar_historial(usuario: Usuario) -> list[AiHistoryItem]:

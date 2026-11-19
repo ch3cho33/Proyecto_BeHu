@@ -85,3 +85,19 @@ class ModuleNotFound(DomainError):
 
 class QuizAnswerIncorrect(DomainError):
     status_code = 400
+
+
+class SeniorNotLinkable(DomainError):
+    status_code = 400
+
+
+class FamilyTaken(DomainError):
+    status_code = 409
+
+
+class InvitationNotFound(DomainError):
+    status_code = 404
+
+
+class CardBlocked(DomainError):
+    status_code = 409

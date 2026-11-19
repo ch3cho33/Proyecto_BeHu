@@ -30,6 +30,7 @@ class UserRegisterRequest(BaseModel):
     apellidos: str = Field(min_length=1, max_length=120)
     rol: str = Field(pattern=f"^({ROLE_SENIOR}|{ROLE_JUNIOR})$")
     telefono: str | None = Field(default=None, max_length=32)
+    moneda: str = Field(default="COP", pattern="^(COP|USD|EUR|MXN|PEN)$")
 
 
 class UserLoginRequest(BaseModel):
@@ -47,6 +48,7 @@ class UserPublic(BaseModel):
     rol: str
     is_active: bool
     kyc_status: str
+    moneda_preferida: str = "COP"
     created_at: datetime
 
 

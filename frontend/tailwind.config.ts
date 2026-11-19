@@ -5,10 +5,28 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#14221b",
-        moss: "#1f7a4d",
-        sand: "#f3efe6",
-        clay: "#c46b3a",
+        bg: "var(--bg)",
+        elevated: "var(--bg-elevated)",
+        surface: "var(--surface)",
+        "surface-hover": "var(--surface-hover)",
+        "surface-strong": "var(--surface-strong)",
+        line: "var(--border)",
+        "line-strong": "var(--border-strong)",
+        ink: "var(--text)",
+        muted: "var(--text-muted)",
+        dim: "var(--text-dim)",
+        primary: "var(--primary)",
+        success: "var(--success)",
+        danger: "var(--danger)",
+        warning: "var(--warning)",
+      },
+      borderRadius: {
+        behu: "8px",
+        card: "12px",
+        sheet: "16px",
+      },
+      maxWidth: {
+        app: "1200px",
       },
     },
   },

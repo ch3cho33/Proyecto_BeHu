@@ -7,7 +7,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID
 
-from sqlalchemy import CheckConstraint, ForeignKey, Numeric, String, Uuid
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Numeric, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -75,6 +75,11 @@ class Cuenta(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     limite_gasto_semanal: Mapped[Decimal | None] = mapped_column(
         Numeric(18, 2),
         nullable=True,
+    )
+    tarjeta_bloqueada: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
     )
 
     usuario: Mapped[Usuario] = relationship("Usuario", back_populates="cuenta")

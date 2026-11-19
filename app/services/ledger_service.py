@@ -60,6 +60,11 @@ async def transferir(
     categoria: str | None = None,
     comercio: str | None = None,
     forzada: bool = False,
+    is_impulsive: bool = False,
+    metodo_pago: str | None = None,
+    notas: str | None = None,
+    recurrencia: str | None = None,
+    bucket: str | None = None,
 ) -> Transaccion:
     """Débito origen / crédito destino en una sola transacción SQL."""
     monto = Decimal(monto).quantize(Decimal("0.01"))
@@ -92,6 +97,11 @@ async def transferir(
         categoria=categoria,
         comercio=comercio,
         forzada=forzada,
+        is_impulsive=is_impulsive or forzada,
+        metodo_pago=metodo_pago,
+        notas=notas,
+        recurrencia=recurrencia,
+        bucket=bucket,
     )
     db.add(transaccion)
     await db.flush()
