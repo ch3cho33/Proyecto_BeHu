@@ -2,6 +2,16 @@
 
 Todos los cambios relevantes del backend BeHu se registran aquí.
 
+## [2.1.0] — 2026-11-19 — Acabado de producto
+
+### Added
+
+- Tarjeta débito virtual, dona SVG de categorías, barras de límite contra gasto y medidor del Score.
+- Skeletons, toasts y movimientos con filtro, búsqueda, método de pago y bucket 50/30/20.
+- Banner de invitación del Junior con mesada y límites. El Senior ve pendientes, desvincula con modal y edita límites con `PATCH /api/v1/supervision/juniors/{id}/limits`.
+- Ajustes de perfil, moneda, KYC simulado y candado de límites para el Junior.
+- BeHu Mini abre diagnósticos de hormiga, metas y fondo de emergencia con las cifras reales.
+
 ## [2.0.0] — 2026-11-19 — Neobanco familiar
 
 ### Added

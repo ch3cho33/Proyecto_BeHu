@@ -51,12 +51,14 @@ async def _supervision_activa(db: AsyncSession, cuenta_junior_id: UUID) -> Super
     )
 
 
-def _publica(invitation: FamilyInvitation, senior: Usuario) -> InvitationPublic:
+def _publica(invitation: FamilyInvitation, senior: Usuario, junior: Usuario | None = None) -> InvitationPublic:
     return InvitationPublic(
         id=invitation.id,
         senior_id=invitation.senior_id,
         junior_id=invitation.junior_id,
         senior_nombre=f"{senior.nombres} {senior.apellidos}".strip(),
+        junior_nombre=f"{junior.nombres} {junior.apellidos}".strip() if junior else "",
+        junior_email=junior.email if junior else "",
         initial_budget=invitation.initial_budget,
         daily_limit=invitation.daily_limit,
         weekly_limit=invitation.weekly_limit,
@@ -106,7 +108,7 @@ async def invitar(db: AsyncSession, senior: Usuario, payload: InviteRequest) -> 
         pendiente.monthly_limit = payload.monthly_limit
     await db.commit()
     await db.refresh(pendiente)
-    return _publica(pendiente, senior)
+    return _publica(pendiente, senior, junior)
 
 
 async def crear_junior(db: AsyncSession, senior: Usuario, payload: CreateJuniorRequest) -> InvitationPublic:
@@ -187,7 +189,24 @@ async def listar_pendientes(db: AsyncSession, junior: Usuario) -> list[Invitatio
     for row in rows:
         senior = await db.get(Usuario, row.senior_id)
         if senior is not None:
-            salida.append(_publica(row, senior))
+            salida.append(_publica(row, senior, junior))
+    return salida
+
+
+async def listar_enviadas(db: AsyncSession, senior: Usuario) -> list[InvitationPublic]:
+    rows = (
+        await db.scalars(
+            select(FamilyInvitation).where(
+                FamilyInvitation.senior_id == senior.id,
+                FamilyInvitation.estado == EstadoInvitacion.PENDING.value,
+            )
+        )
+    ).all()
+    salida: list[InvitationPublic] = []
+    for row in rows:
+        junior = await db.get(Usuario, row.junior_id)
+        if junior is not None:
+            salida.append(_publica(row, senior, junior))
     return salida
 
 
@@ -330,3 +349,39 @@ async def cambiar_tarjeta(
     cuenta.tarjeta_bloqueada = bloqueada
     await db.commit()
     return CardStatusResponse(cuenta_junior_id=cuenta.id, tarjeta_bloqueada=cuenta.tarjeta_bloqueada)
+
+
+async def actualizar_limites(
+    db: AsyncSession,
+    senior: Usuario,
+    cuenta_junior_id: UUID,
+    daily_limit: Decimal,
+    weekly_limit: Decimal,
+    monthly_limit: Decimal,
+):
+    from app.schemas.supervision import LimitsResponse
+
+    cuenta_senior = await get_cuenta_usuario(db, senior)
+    vinculo = await db.scalar(
+        select(SupervisionCuenta).where(
+            SupervisionCuenta.cuenta_senior_id == cuenta_senior.id,
+            SupervisionCuenta.cuenta_junior_id == cuenta_junior_id,
+            SupervisionCuenta.estado == EstadoSupervision.ACTIVA.value,
+        )
+    )
+    if vinculo is None:
+        raise ForbiddenAction("Solo puedes editar límites de un Junior de tu núcleo")
+    cuenta = await db.get(Cuenta, cuenta_junior_id)
+    if cuenta is None:
+        raise AccountNotFound("Cuenta junior no encontrada")
+    cuenta.limite_gasto_diario = daily_limit
+    cuenta.limite_gasto_semanal = weekly_limit
+    cuenta.limite_gasto_mensual = monthly_limit
+    vinculo.presupuesto_periodico = monthly_limit
+    await db.commit()
+    return LimitsResponse(
+        cuenta_junior_id=cuenta.id,
+        daily_limit=daily_limit,
+        weekly_limit=weekly_limit,
+        monthly_limit=monthly_limit,
+    )

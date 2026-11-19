@@ -18,6 +18,8 @@ from app.schemas.supervision import (
     InvitationPublic,
     InvitationRespondRequest,
     InviteRequest,
+    LimitsRequest,
+    LimitsResponse,
     SupervisionCreateRequest,
     SupervisionJuniorItem,
     SupervisionPublic,
@@ -46,6 +48,14 @@ async def create_junior(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> InvitationPublic:
     return await invitation_service.crear_junior(db, senior, payload)
+
+
+@router.get("/invitations/sent", response_model=list[InvitationPublic])
+async def sent_invitations(
+    senior: SeniorUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> list[InvitationPublic]:
+    return await invitation_service.listar_enviadas(db, senior)
 
 
 @router.get("/invitations", response_model=list[InvitationPublic])
@@ -83,6 +93,23 @@ async def junior_card_status(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> CardStatusResponse:
     return await invitation_service.cambiar_tarjeta(db, senior, junior_id, payload.bloqueada)
+
+
+@router.patch("/juniors/{junior_id}/limits", response_model=LimitsResponse)
+async def junior_limits(
+    junior_id: UUID,
+    payload: LimitsRequest,
+    senior: SeniorUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> LimitsResponse:
+    return await invitation_service.actualizar_limites(
+        db,
+        senior,
+        junior_id,
+        payload.daily_limit,
+        payload.weekly_limit,
+        payload.monthly_limit,
+    )
 
 
 @router.post("/link", response_model=SupervisionPublic, status_code=status.HTTP_201_CREATED)

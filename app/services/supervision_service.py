@@ -115,6 +115,10 @@ async def listar_juniors(db: AsyncSession, senior: Usuario) -> list[SupervisionJ
                 presupuesto_periodico=vinculo.presupuesto_periodico,
                 periodicidad=vinculo.periodicidad,
                 estado=vinculo.estado,
+                limite_gasto_diario=junior_cta.limite_gasto_diario,
+                limite_gasto_semanal=junior_cta.limite_gasto_semanal,
+                limite_gasto_mensual=junior_cta.limite_gasto_mensual,
+                tarjeta_bloqueada=junior_cta.tarjeta_bloqueada,
             )
         )
     return items

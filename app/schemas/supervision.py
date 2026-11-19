@@ -36,6 +36,10 @@ class SupervisionJuniorItem(BaseModel):
     presupuesto_periodico: Decimal
     periodicidad: str
     estado: str
+    limite_gasto_diario: Decimal | None = None
+    limite_gasto_semanal: Decimal | None = None
+    limite_gasto_mensual: Decimal | None = None
+    tarjeta_bloqueada: bool = False
 
 
 class SupervisionPublic(BaseModel):
@@ -71,6 +75,8 @@ class InvitationPublic(BaseModel):
     senior_id: UUID
     junior_id: UUID
     senior_nombre: str
+    junior_nombre: str = ""
+    junior_email: str = ""
     initial_budget: Decimal
     daily_limit: Decimal
     weekly_limit: Decimal
@@ -100,3 +106,16 @@ class CardStatusRequest(BaseModel):
 class CardStatusResponse(BaseModel):
     cuenta_junior_id: UUID
     tarjeta_bloqueada: bool
+
+
+class LimitsRequest(BaseModel):
+    daily_limit: Decimal = Field(ge=0)
+    weekly_limit: Decimal = Field(ge=0)
+    monthly_limit: Decimal = Field(ge=0)
+
+
+class LimitsResponse(BaseModel):
+    cuenta_junior_id: UUID
+    daily_limit: Decimal
+    weekly_limit: Decimal
+    monthly_limit: Decimal

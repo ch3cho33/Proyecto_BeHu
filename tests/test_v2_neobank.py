@@ -184,3 +184,20 @@ async def test_invitation_consent_freeze_and_mini(client: httpx.AsyncClient):
     regla = await client.get("/api/v1/budgets/50-30-20", headers=senior)
     assert regla.status_code == 200, regla.text
     assert Decimal(regla.json()["ingresos"]) >= Decimal("300000")
+
+    enviadas = await client.get("/api/v1/supervision/invitations/sent", headers=senior)
+    assert enviadas.status_code == 200
+
+    cuenta_junior = next(
+        item["cuenta_junior_id"]
+        for item in (await client.get("/api/v1/supervision/juniors", headers=senior)).json()
+        if item["email"] == "huerfano@behu.test"
+    )
+    limites = await client.patch(
+        f"/api/v1/supervision/juniors/{cuenta_junior}/limits",
+        headers=senior,
+        json={"daily_limit": "12000", "weekly_limit": "40000", "monthly_limit": "90000"},
+    )
+    assert limites.status_code == 200, limites.text
+    propio = (await client.get("/api/v1/accounts/me", headers=junior)).json()["account"]
+    assert Decimal(propio["limite_gasto_diario"]) == Decimal("12000")
