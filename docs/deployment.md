@@ -1,6 +1,40 @@
-# Despliegue BeHu v1.0.0 — Vercel, Render y MongoDB Atlas
+# Despliegue BeHu v1.0.0 — Vercel Services, Postgres y MongoDB Atlas
 
-BeHu v1.0.0 es el sandbox académico completo: cuentas Senior/Junior, ledger de partida doble, presupuesto, compras con alerta, metas, BeHu Mini, Score y Academia. El API corre en **Render** (imagen Docker) y la PWA en **Vercel**.
+BeHu v1.0.0 es el sandbox académico completo: cuentas Senior/Junior, ledger de partida doble, presupuesto, compras con alerta, metas, BeHu Mini, Score y Academia.
+
+El proyecto se publica como **un solo proyecto de Vercel Services** (`vercel.json` en la raíz). El mismo dominio sirve la PWA y el API.
+
+| Servicio | Raíz | Qué es |
+| --- | --- | --- |
+| `app` | `.` | FastAPI (`app.main:app`) |
+| `frontend` | `frontend` | Next.js / PWA |
+
+Rutas públicas, de la más específica a la general:
+
+| Ruta | Servicio |
+| --- | --- |
+| `/api/...` | `app` |
+| `/docs`, `/redoc`, `/openapi.json`, `/health` | `app` |
+| el resto (`/`, estáticos, PWA) | `frontend` |
+
+No hay binding interno. El navegador llama a `/api/v1` en el mismo origen. Un binding solo inyecta una URL en código de servidor, y esta PWA llama al API desde el cliente.
+
+## Variables en Vercel
+
+| Variable | Dónde | Valor |
+| --- | --- | --- |
+| `DATABASE_URL` | servicio `app` | URI de Neon o Supabase. `postgres://` se convierte a `postgresql+asyncpg://`. `sslmode=require` pasa a `ssl=require`. |
+| `AUTO_SEED_SANDBOX` | `app` | `true` solo en este sandbox. El arranque crea tablas, `senior@behu.test`, `junior@behu.test` y las 3 cápsulas. Un reinicio no duplica filas. |
+| `AUTO_CREATE_TABLES` | `app` | `false` si el seed ya crea el esquema |
+| `JWT_SECRET` | `app` | 32 caracteres o más |
+| `MONGODB_URI` | `app` | `mongodb+srv://...` de Atlas |
+| `MONGODB_DB` | `app` | `behu` |
+| `FRONTEND_URL` | `app` | URL pública de Vercel, por si un cliente externo llama al API |
+| `NEXT_PUBLIC_API_URL` | `frontend` | Déjala **vacía** en Vercel. El build de producción usa `/api/v1`. En local el ejemplo apunta a `http://127.0.0.1:8000/api/v1`. |
+
+No uses SQLite en Vercel: el disco de la función desaparece. Sin `DATABASE_URL` de Postgres el seed no sobrevive al siguiente arranque.
+
+Usuarios del seed: `senior@behu.test` / `BeHuSenior1!` y `junior@behu.test` / `BeHuJunior1!`.
 
 ## 0. Pruebas antes de desplegar
 
@@ -12,13 +46,11 @@ pytest -q
 
 `tests/test_e2e_mvp.py` usa una SQLite propia (`test_mvp.db`) y no toca `behu_sandbox.db`. Cubre registro y JWT, presupuesto con partida doble, gasto impulsivo, meta que congela saldo, BeHu Mini por rol, score y quiz.
 
-## 1. Frontend en Vercel
+## 1. Frontend en el mismo proyecto
 
-1. Importa el repo y define el directorio raíz `frontend`.
-2. Variable de entorno: `NEXT_PUBLIC_API_URL=https://<servicio-render>.onrender.com/api/v1`.
-3. El manifiesto en `frontend/public/manifest.json` y los iconos permiten instalar la PWA desde el navegador del teléfono (HTTPS de Vercel).
+El servicio `frontend` ya vive en este despliegue. No hace falta un segundo proyecto de Vercel ni un `NEXT_PUBLIC_API_URL` apuntando a otro host. El manifiesto en `frontend/public/manifest.json` sigue permitiendo instalar la PWA.
 
-## 2. Backend en Render
+## 2. Alternativa: backend en Render
 
 `render.yaml` describe el servicio web Docker y una base Postgres.
 
@@ -53,7 +85,7 @@ Variables exactas del servicio web:
 | `AWS_ACCESS_KEY_ID` | Vacío hasta tener llave |
 | `AWS_SECRET_ACCESS_KEY` | Vacío hasta tener llave |
 
-En Vercel, directorio `frontend`, una sola variable: `NEXT_PUBLIC_API_URL=https://<servicio>.onrender.com/api/v1`.
+Si el API vive en Render y la PWA en otro host, `NEXT_PUBLIC_API_URL` debe ser `https://<servicio>.onrender.com/api/v1`. En el proyecto unificado de Vercel esa variable se deja vacía.
 
 Usuarios que crea el seed: `senior@behu.test` / `BeHuSenior1!` y `junior@behu.test` / `BeHuJunior1!`.
 

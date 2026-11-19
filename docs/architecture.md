@@ -191,4 +191,12 @@ Docker: `Dockerfile` (Python 3.11) y `docker-compose.yml` (API + Mongo 7). Front
 
 El score parte de 50. Sube con metas abonadas, compras dentro del límite semanal y módulos completados. Baja con compras `forzada=true` y con gastar el 90% o más del límite diario el mismo día. Niveles: Crítico, En Construcción, Saludable, Excelente.
 
-La PWA vive en `frontend/public/manifest.json`. CORS acepta `CORS_ORIGINS` y `FRONTEND_URL` (dominio Vercel). El despliegue objetivo del API pasa a Render; la guía está en `docs/deployment.md`.
+La PWA vive en `frontend/public/manifest.json`. CORS acepta `CORS_ORIGINS` y `FRONTEND_URL`.
+
+## 12. Vercel Services (un solo dominio)
+
+`vercel.json` define dos servicios: `app` (FastAPI en `.`, entrada `app.main:app`) y `frontend` (Next.js). `/api/(.*)`, `/docs`, `/redoc`, `/openapi.json` y `/health` entran a `app`. El resto entra a `frontend`.
+
+En producción el cliente usa la ruta relativa `/api/v1`, así que el navegador no cruza orígenes. En `next dev` sigue llamando a `http://127.0.0.1:8000/api/v1`. FastAPI ya expone ese prefijo, y Vercel reenvía la ruta original sin recortarla.
+
+La base del servicio `app` es PostgreSQL en Neon o Supabase. MongoDB Atlas guarda hábitos y recomendaciones. SQLite no sirve en Vercel: el disco es efímero. `AUTO_SEED_SANDBOX=true` corre el seed idempotente en el lifespan. La guía está en `docs/deployment.md`.

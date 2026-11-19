@@ -2,7 +2,9 @@
 
 import { FormEvent, useEffect, useState } from "react";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000/api/v1";
+const API =
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
+  (process.env.NODE_ENV === "production" ? "/api/v1" : "http://127.0.0.1:8000/api/v1");
 
 type User = { nombres: string; apellidos: string; email: string; rol: "SENIOR" | "JUNIOR" };
 type Account = {

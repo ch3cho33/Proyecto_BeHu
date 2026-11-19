@@ -1,5 +1,6 @@
 """Punto de entrada FastAPI — API stateless para móvil / PWA."""
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -12,9 +13,16 @@ from app.core.database import create_schema
 from app.core.mongodb import close_mongo_client
 from app.models import Base  # noqa: F401  — registra mappers SQLAlchemy
 
+logger = logging.getLogger("behu")
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    if settings.auto_seed_sandbox and settings.database_url.startswith("sqlite"):
+        logger.warning(
+            "AUTO_SEED_SANDBOX sobre SQLite. En Vercel el disco es efímero; "
+            "usa DATABASE_URL de Neon o Supabase (postgresql+asyncpg)."
+        )
     if settings.auto_seed_sandbox:
         from scripts.seed_sandbox import seed
 

@@ -94,13 +94,13 @@ pytest -q
 
 ## Release
 
-La línea de trabajo publicada es `main`, tag `v1.0.0`. El seed automático de Render se enciende con `AUTO_SEED_SANDBOX=true`. Los pasos de Atlas, Render y Vercel están en [docs/deployment.md](docs/deployment.md).
+La línea de trabajo publicada es `main`, tag `v1.0.0`. En Vercel el seed se enciende con `AUTO_SEED_SANDBOX=true` y una `DATABASE_URL` de Neon o Supabase. Los pasos están en [docs/deployment.md](docs/deployment.md).
 
 ## Despliegue objetivo
 
 | Pieza | Destino |
 | --- | --- |
-| API FastAPI | Render |
-| PWA Next.js | Vercel |
+| API y PWA | Vercel Services (mismo dominio) |
+| Postgres | Neon o Supabase |
 | Hábitos e IA | MongoDB Atlas |
 | KYC | AWS S3 (local si no hay llaves) |

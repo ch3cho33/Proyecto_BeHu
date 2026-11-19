@@ -2,6 +2,14 @@
 
 Todos los cambios relevantes del backend BeHu se registran aquí.
 
+## [1.0.1] — 2026-11-19 — Vercel Services
+
+### Changed
+
+- `vercel.json` en la raíz: servicios `app` (FastAPI) y `frontend` (Next.js) bajo el mismo dominio. `/api`, Swagger y `/health` van al API; el resto va a la PWA.
+- El cliente de producción llama a `/api/v1` si `NEXT_PUBLIC_API_URL` está vacía. En local sigue usando `http://127.0.0.1:8000/api/v1`.
+- Las URIs de Neon/Supabase convierten `sslmode` a `ssl` para asyncpg. El seed avisa si corre sobre SQLite en un entorno efímero.
+
 ## [1.0.0] — 2026-11-19 — Release MVP
 
 ### Added

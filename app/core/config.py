@@ -1,6 +1,7 @@
 """Configuración 12-factor (Pydantic Settings)."""
 
 from functools import lru_cache
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -48,10 +49,21 @@ class Settings(BaseSettings):
     @classmethod
     def normalize_database_url(cls, value: str) -> str:
         if value.startswith("postgres://"):
-            return "postgresql+asyncpg://" + value[len("postgres://") :]
-        if value.startswith("postgresql://") and "+asyncpg" not in value.split("://", 1)[0]:
-            return "postgresql+asyncpg://" + value[len("postgresql://") :]
-        return value
+            value = "postgresql+asyncpg://" + value[len("postgres://") :]
+        elif value.startswith("postgresql://") and "+asyncpg" not in value.split("://", 1)[0]:
+            value = "postgresql+asyncpg://" + value[len("postgresql://") :]
+        if not value.startswith("postgresql+asyncpg://"):
+            return value
+        parts = urlsplit(value)
+        query = []
+        for key, item in parse_qsl(parts.query, keep_blank_values=True):
+            if key == "sslmode":
+                query.append(("ssl", item))
+            elif key == "channel_binding":
+                continue
+            else:
+                query.append((key, item))
+        return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
 
     @field_validator("jwt_secret")
     @classmethod
