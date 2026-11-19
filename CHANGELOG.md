@@ -1,0 +1,52 @@
+# Changelog
+
+Todos los cambios relevantes del backend BeHu se registran aquí.
+
+## [0.3.0] — 2026-11-19 — Sprint 2
+
+### Added
+
+- Compra simulada `POST /api/v1/transactions/spend` con catálogo `categoria_gasto` y alerta anti-impulsos (`409 GASTO_IMPULSIVO`) si se supera el límite diario/semanal o el 40% del saldo.
+- Metas de ahorro (`meta_ahorro`): crear, listar progreso y abonar. El abono congela saldo con partida doble hacia `SANDBOX_META`.
+- BeHu Mini: `POST /api/v1/ai/consult` y `GET /api/v1/ai/history`. MongoDB con fallback JSON local.
+- Cuentas internas `SANDBOX_MERCHANT` y `SANDBOX_META`.
+- `Dockerfile` y `docker-compose.yml` (API + Mongo).
+- Frontend Next.js en `frontend/` (login, dashboard Senior/Junior, presupuesto, gasto y BeHu Mini).
+
+### Notes
+
+- El asistente es un motor de reglas contextualizado para el sandbox, no un LLM de terceros.
+- Si la base SQLite es de Sprint 1, hay que recrearla (`rm behu_sandbox.db && python scripts/seed_sandbox.py`) para las columnas nuevas.
+
+## [0.2.0] — 2026-11-15 — Sprint 1 / Fase 2
+
+### Added
+
+- Excepciones de dominio y mapeo HTTP (`app/services/exceptions.py`).
+- Servicios: autenticación (registro + cuenta + JWT), supervisión parental, ledger de partida doble atómico, consulta de saldo derivado.
+- API REST v1: `/auth/register`, `/auth/login`, `/accounts/me`, `/supervision/link`, `/supervision/juniors`, `/supervision/link/{id}`, `/transfers/budget`.
+- Sandbox SQLite portable y script `scripts/seed_sandbox.py` (`senior@behu.test` / `junior@behu.test`).
+- Cuentas puente `SANDBOX_FLOAT` y `SANDBOX_EQUITY` para funding inicial sin `UPDATE` suelto de saldo.
+- CORS, `create_all` en desarrollo y handlers JSON `{ "detail": "..." }`.
+
+### Notes
+
+- MVP académico: no hay ACH, redes de tarjetas ni KMS/S3 cableados.
+- Perfil Junior no ve movimientos con `es_transferencia_global = true`.
+
+## [0.1.0] — 2026-10-13 — Sprint 1 / Fase 1
+
+### Added
+
+- Documentación de arquitectura (`docs/architecture.md`): capas FastAPI, contrato REST stateless para móvil/PWA, POO `CuentaSenior` / `CuentaJunior`, ledger de partida doble y despliegue Railway / Vercel / AWS.
+- Esquema de datos (`docs/database_schema.md`): tablas PostgreSQL ACID, ledger inmutable y colecciones MongoDB `user_habits` / `ai_recommendations`.
+- Núcleo de configuración y seguridad: Pydantic Settings, bcrypt, JWT con claims `sub`, `rol` (`SENIOR` \| `JUNIOR`) y `exp`.
+- Conexiones políglotas: SQLAlchemy 2 (async PostgreSQL) y cliente Motor (MongoDB).
+- Dependencias FastAPI: `get_db`, `get_current_user`, `require_role`.
+- Modelos SQLAlchemy: `Usuario`, `Cuenta` / `CuentaSenior` / `CuentaJunior`, `SupervisionCuenta`, `Transaccion`, `LedgerContable`.
+- Schemas Pydantic de contrato JSON para clientes móviles.
+- `GET /health` y CORS configurable para desarrollo móvil/PWA.
+
+### Notes
+
+- Integración AWS S3 / KMS documentada, no cableada.
