@@ -1,6 +1,8 @@
 """Motor SQLAlchemy 2 async (SQLite sandbox o PostgreSQL)."""
 
+import ssl
 from collections.abc import AsyncGenerator
+from urllib.parse import urlsplit
 
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -11,7 +13,16 @@ from sqlalchemy.pool import StaticPool
 
 from app.core.config import settings
 
+_LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 _is_sqlite = settings.database_url.startswith("sqlite")
+
+
+def _asyncpg_needs_ssl(url: str) -> bool:
+    if not url.startswith("postgresql+asyncpg://"):
+        return False
+    host = (urlsplit(url).hostname or "").lower()
+    return host not in _LOCAL_HOSTS
+
 
 _engine_kwargs: dict = {"echo": settings.debug}
 if _is_sqlite:
@@ -25,6 +36,8 @@ else:
         pool_size=5,
         max_overflow=10,
     )
+    if _asyncpg_needs_ssl(settings.database_url):
+        _engine_kwargs["connect_args"] = {"ssl": ssl.create_default_context()}
 
 engine = create_async_engine(settings.database_url, **_engine_kwargs)
 

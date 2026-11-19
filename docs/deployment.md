@@ -23,7 +23,7 @@ No hay binding interno. El navegador llama a `/api/v1` en el mismo origen. Un bi
 
 | Variable | Dónde | Valor |
 | --- | --- | --- |
-| `DATABASE_URL` | servicio `app` | URI de Neon o Supabase. `postgres://` se convierte a `postgresql+asyncpg://`. `sslmode=require` pasa a `ssl=require`. |
+| `DATABASE_URL` | servicio `app` | URI de Neon o Supabase. `postgres://` se convierte a `postgresql+asyncpg://`. `sslmode` y `channel_binding` se quitan de la URL; el engine pasa SSL por `connect_args` si el host no es local. |
 | `AUTO_SEED_SANDBOX` | `app` | `true` solo en este sandbox. El arranque crea tablas, `senior@behu.test`, `junior@behu.test` y las 3 cápsulas. Un reinicio no duplica filas. |
 | `AUTO_CREATE_TABLES` | `app` | `false` si el seed ya crea el esquema |
 | `JWT_SECRET` | `app` | 32 caracteres o más |

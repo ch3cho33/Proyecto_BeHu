@@ -2,6 +2,24 @@
 
 Todos los cambios relevantes del backend BeHu se registran aquí.
 
+## [1.0.3] — 2026-11-19 — Runtime Python en Vercel
+
+### Fixed
+
+- La URL de Neon ya no lleva `sslmode`, `channel_binding` ni `ssl` en el query. `asyncpg` recibe `ssl` por `connect_args` solo si el host no es local, así no aparece `unexpected keyword argument 'sslmode'`.
+- `bcrypt` queda fijado en `4.0.1`. El hash sigue en `app/core/security.py` con la librería directa, sin `passlib`.
+- `GET /health` y `GET /api/health` responden `200` sin abrir la base. `GET /api/v1/health/db` devuelve el error exacto de Neon en JSON. El lifespan ya no tumba la función si la base falla.
+- `vercel.json` sigue enviando la ruta completa a `app.main:app`.
+
+## [1.0.2] — 2026-11-19 — Arranque en Vercel
+
+### Fixed
+
+- `AUTO_SEED_SANDBOX=true` fuerza `AUTO_CREATE_TABLES` también en `ENVIRONMENT=production`, para que Neon no quede sin tablas.
+- La primera petición a `/api` (incluido `/api/v1/auth/login`) ejecuta `create_all` y el seed una sola vez por instancia, aunque Vercel no dispare el lifespan.
+- El login muestra `HTTP <código>` y el `detail` del servidor cuando la respuesta no es el JSON esperado.
+- Las rutas de FastAPI siguen siendo `/api/v1/...`. Vercel entrega esa ruta completa; no se recorta `/api`.
+
 ## [1.0.1] — 2026-11-19 — Vercel Services
 
 ### Changed

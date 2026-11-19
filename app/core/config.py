@@ -3,7 +3,7 @@
 from functools import lru_cache
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -54,16 +54,21 @@ class Settings(BaseSettings):
             value = "postgresql+asyncpg://" + value[len("postgresql://") :]
         if not value.startswith("postgresql+asyncpg://"):
             return value
+        # asyncpg no acepta sslmode ni channel_binding como kwargs de connect().
+        # El SSL va en connect_args del engine, no en el query string.
         parts = urlsplit(value)
-        query = []
-        for key, item in parse_qsl(parts.query, keep_blank_values=True):
-            if key == "sslmode":
-                query.append(("ssl", item))
-            elif key == "channel_binding":
-                continue
-            else:
-                query.append((key, item))
+        query = [
+            (key, item)
+            for key, item in parse_qsl(parts.query, keep_blank_values=True)
+            if key not in {"sslmode", "channel_binding", "ssl"}
+        ]
         return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), parts.fragment))
+
+    @model_validator(mode="after")
+    def seed_implies_tables(self) -> "Settings":
+        if self.auto_seed_sandbox:
+            self.auto_create_tables = True
+        return self
 
     @field_validator("jwt_secret")
     @classmethod
