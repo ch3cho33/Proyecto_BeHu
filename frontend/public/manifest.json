@@ -1,12 +1,12 @@
 {
-  "name": "BeHu",
+  "name": "BeHu — Neobanco Familiar",
   "short_name": "BeHu",
-  "description": "Cuentas parentales, score financiero y Academia BeHu",
+  "description": "Cuentas parentales, score financiero y BeHu Mini",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#f3efe6",
-  "theme_color": "#1f7a4d",
+  "background_color": "#090D16",
+  "theme_color": "#090D16",
   "lang": "es",
   "icons": [
     {
@@ -20,6 +20,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

@@ -256,3 +256,75 @@ async def test_roundup_goes_to_goal(client: httpx.AsyncClient):
     assert recibo.status_code == 200, recibo.text
     naturalezas = {linea["naturaleza"] for linea in recibo.json()["asientos"]}
     assert naturalezas == {"DEBITO", "CREDITO"}
+
+
+@pytest.mark.asyncio
+async def test_non_pertinent_spend_alerts_senior(client: httpx.AsyncClient):
+    from app.services.behu_mini_ai import proyectar_recuperable
+
+    alta = await client.post(
+        "/api/v1/auth/register",
+        json={
+            "email": "senior.vicio@behu.test",
+            "password": "BeHuSenior4!",
+            "nombres": "Sara",
+            "apellidos": "Limpia",
+            "rol": "SENIOR",
+        },
+    )
+    assert alta.status_code == 201, alta.text
+    senior = await _login(client, "senior.vicio@behu.test", "BeHuSenior4!")
+    fondeo = await client.post(
+        "/api/v1/transactions/income",
+        headers=senior,
+        json={"monto": "200000", "descripcion": "Fondeo sandbox"},
+    )
+    assert fondeo.status_code == 201, fondeo.text
+    creado = await client.post(
+        "/api/v1/supervision/create-junior",
+        headers=senior,
+        json={
+            "email": "vicio@behu.test",
+            "password": "BeHuJunior4!",
+            "nombres": "Vico",
+            "apellidos": "Riesgo",
+            "initial_budget": "80000",
+            "daily_limit": "200000",
+            "weekly_limit": "400000",
+            "monthly_limit": "800000",
+        },
+    )
+    assert creado.status_code == 201, creado.text
+    junior = await _login(client, "vicio@behu.test", "BeHuJunior4!")
+    compra = await client.post(
+        "/api/v1/transactions",
+        headers=junior,
+        json={
+            "tipo": "GASTO",
+            "monto": "3200",
+            "categoria": "OCIO",
+            "metodo_pago": "TARJETA_DEBITO",
+            "notas": "cerveza en el bar",
+            "bucket": "DESEOS",
+        },
+    )
+    assert compra.status_code == 201, compra.text
+
+    alertas = await client.get("/api/v1/ai/parental-alerts", headers=senior)
+    assert alertas.status_code == 200, alertas.text
+    vicio = next(item for item in alertas.json() if item["tipo"] == "GASTO_NO_PERTINENTE" and item["junior_nombre"].startswith("Vico"))
+    assert vicio["severity"] == "high"
+    assert vicio["badge"] == "Gasto No Pertinente"
+    assert "cerveza" in vicio["mensaje"]
+    assert "3200" in vicio["mensaje"]
+    assert "$3200 COP" in vicio["sugerencia"]
+    assert "redondeo automático" in vicio["sugerencia"]
+
+    tres, seis = proyectar_recuperable(Decimal("3200"))
+    for headers in (junior, senior):
+        mini = await client.post("/api/v1/ai/consult", headers=headers, json={"pregunta": "en que se va la plata"})
+        assert mini.status_code == 200, mini.text
+        texto = " ".join(mini.json()["recomendaciones"])
+        assert "gastos no pertinentes" in texto
+        assert f"{tres:.0f} COP a 3 meses" in texto
+        assert f"{seis:.0f} COP a 6 meses" in texto

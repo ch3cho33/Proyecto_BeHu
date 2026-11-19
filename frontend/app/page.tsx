@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { KeyChip, MovementDesk, QuickActions, type Draft } from "./flow";
 import { Donut, ScoreGauge, Skeleton, Toasts, VirtualCard, WeekBars, labelCategory, type Toast } from "./ui";
-import { BookOpen, Home, PieChart, Settings as SettingsIcon, Sparkles, Target, Users, Wallet } from "lucide-react";
+import { BookOpen, Home, LogOut, PieChart, Settings as SettingsIcon, Sparkles, Target, Users, Wallet } from "lucide-react";
 
 const API =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
@@ -64,7 +64,7 @@ type Invite = {
 type Score = { puntaje: number; nivel: string; factores_positivos?: { etiqueta: string; puntos: number }[]; factores_negativos?: { etiqueta: string; puntos: number }[] };
 type Lesson = { id: string; titulo: string; resumen: string; pregunta: string; opciones: string[]; completado: boolean; insignia: string };
 type Advice = { resumen: string; recomendaciones: string[] };
-type Alert = { tipo: string; junior_nombre: string; mensaje: string; sugerencia: string };
+type Alert = { tipo: string; junior_nombre: string; mensaje: string; sugerencia: string; severity?: string; badge?: string | null };
 type Activity = { id: string; categoria?: string | null; metodo_pago?: string | null; fecha: string; monto: string; is_impulsive: boolean; es_hormiga: boolean; descripcion?: string | null };
 type Budget = {
   ingresos: string;
@@ -328,22 +328,61 @@ export default function HomePage() {
     );
   }
 
+  const pendingInvites = invites.filter((invite) => invite.estado === "PENDING").length;
+  const attention = (id: View) => (id === "familia" && alerts.length > 0 ? alerts.length : id === "inicio" && pendingInvites > 0 ? pendingInvites : 0);
+
   return (
-    <div className="min-h-screen md:grid md:grid-cols-[240px_1fr]">
-      <aside className="hidden border-r border-line bg-elevated md:flex md:flex-col md:px-4 md:py-6">
-        <p className="px-3 text-lg font-semibold">BeHu</p>
-        <nav className="mt-8 space-y-1">
-          {nav.map((item) => (
-            <button key={item.id} className={`flex h-10 w-full items-center gap-2 rounded-card px-3 text-left text-sm ${view === item.id ? "bg-surface-strong" : "text-muted hover:bg-surface-hover"}`} onClick={() => setView(item.id)} type="button"><item.icon size={16} />{item.label}</button>
-          ))}
-        </nav>
-        <div className="mt-auto panel p-3">
-          <p className="text-sm font-semibold">{user.nombres.slice(0, 1)}{user.apellidos.slice(0, 1)} · {user.rol}</p>
-          <p className={`mt-1 text-sm ${scoreTone}`}>Score {score?.puntaje ?? "—"} {score?.nivel}</p>
-          <button className="btn-secondary mt-3 h-9 w-full text-sm" type="button" onClick={() => { setToken(null); setUser(null); }}>Salir</button>
+    <div className="min-h-screen lg:grid lg:grid-cols-[288px_minmax(0,1fr)]">
+      <aside className="hidden lg:block">
+        <div className="nav-dock m-4 flex h-[calc(100vh-2rem)] w-[256px] flex-col rounded-[24px] border border-[#1E293B] bg-[#0F1422]/85 shadow-[0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+          <div className="flex items-center gap-3 px-4 pb-2 pt-4">
+            <span className="grid h-10 w-10 place-items-center rounded-2xl bg-[#111726] shadow-[0_0_24px_rgba(59,130,246,0.35)]">
+              <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">
+                <rect x="2" y="3" width="6" height="16" rx="2" fill="#10B981" />
+                <rect x="11" y="7" width="9" height="12" rx="2" fill="#3B82F6" />
+              </svg>
+            </span>
+            <div>
+              <p className="text-base font-semibold tracking-tight">BeHu</p>
+              <p className="text-[10px] font-semibold tracking-[0.16em] text-[#64748B]">{user.rol === "SENIOR" ? "NEOBANK" : "PERSONAL"}</p>
+            </div>
+          </div>
+          <nav className="mt-3 flex-1 space-y-1 overflow-y-auto px-3">
+            {nav.map((item) => {
+              const active = view === item.id;
+              const count = attention(item.id);
+              return (
+                <button
+                  key={item.id}
+                  className={`flex h-11 w-full items-center gap-3 rounded-2xl px-3 text-left text-sm transition duration-200 hover:translate-x-0.5 ${active ? "bg-[#1A2338] text-white shadow-[inset_3px_0_0_#3B82F6]" : "text-[#94A3B8] hover:bg-[#161E31]"}`}
+                  onClick={() => setView(item.id)}
+                  type="button"
+                >
+                  <item.icon size={16} className={active ? "text-[#3B82F6]" : ""} />
+                  <span className="flex-1">{item.label}</span>
+                  {count > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#F43F5E] px-1 text-[10px] font-semibold text-white">{count}</span>}
+                  {active && <span className="h-1.5 w-1.5 rounded-full bg-[#3B82F6]" />}
+                </button>
+              );
+            })}
+          </nav>
+          <div className="m-3 rounded-2xl border border-[#1E293B] bg-[#111726] p-3">
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-[#3B82F6] to-[#10B981] text-sm font-semibold text-white">{user.nombres.slice(0, 1)}{user.apellidos.slice(0, 1)}</span>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{user.nombres} {user.apellidos}</p>
+                <button className="truncate text-xs text-[#94A3B8]" type="button" onClick={() => { if (!llave) return; navigator.clipboard.writeText(`@${llave}`); toast("ok", "Llave copiada"); }}>{llave ? `@${llave}` : "Sin llave"}</button>
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="mb-1 flex justify-between text-[10px] text-[#94A3B8]"><span>Score BeHu</span><span className={scoreTone}>{score?.puntaje ?? "—"}</span></div>
+              <div className="h-1.5 rounded-full bg-[#1A2338]"><div className="h-1.5 rounded-full bg-[#3B82F6]" style={{ width: `${Math.min(100, score?.puntaje ?? 0)}%` }} /></div>
+            </div>
+            <button className="mt-3 flex h-9 w-full items-center justify-center gap-2 rounded-xl text-sm text-[#94A3B8] transition duration-200 hover:bg-[#1A2338] hover:text-white" type="button" onClick={() => { setToken(null); setUser(null); }}><LogOut size={14} />Cerrar sesión</button>
+          </div>
         </div>
       </aside>
-      <main className="mx-auto w-full max-w-app px-4 pb-24 pt-6 md:px-8">
+      <main className="mx-auto w-full max-w-app px-4 pb-28 pt-6 md:px-8">
         {error && <p className="mb-4 text-sm text-danger">{error}</p>}
         {loading && view === "inicio" ? <Skeleton /> : null}
         {view === "inicio" && !loading && (
@@ -458,10 +497,18 @@ export default function HomePage() {
           />
         )}
       </main>
-      <nav className="fixed inset-x-0 bottom-0 grid grid-cols-4 border-t border-line bg-elevated md:hidden">
-        {nav.slice(0, 4).map((item) => (
-          <button key={item.id} className="flex h-14 flex-col items-center justify-center gap-1 text-[10px] text-muted" type="button" onClick={() => setView(item.id)}><item.icon size={16} />{item.label}</button>
-        ))}
+      <nav className="nav-dock-mobile fixed inset-x-0 bottom-4 z-30 mx-4 grid grid-cols-4 rounded-2xl border border-[#1E293B] bg-[#0F1422]/90 shadow-2xl backdrop-blur-xl lg:hidden" style={{ marginBottom: "env(safe-area-inset-bottom)" }}>
+        {nav.slice(0, 4).map((item) => {
+          const active = view === item.id;
+          const count = attention(item.id);
+          return (
+            <button key={item.id} className={`relative flex h-14 flex-col items-center justify-center gap-1 text-[10px] transition duration-200 ${active ? "text-[#3B82F6]" : "text-[#94A3B8]"}`} type="button" onClick={() => setView(item.id)}>
+              <item.icon size={16} />
+              {item.label}
+              {count > 0 && <span className="absolute right-3 top-2 h-2 w-2 animate-pulse rounded-full bg-[#F43F5E]" />}
+            </button>
+          );
+        })}
       </nav>
       <Toasts items={toasts} />
       {unlink && (
@@ -593,8 +640,8 @@ function Family({ token, juniors, alerts, sent, onUnlink, onToast, onDone }: { t
       </div>
       <h2 className="text-sm font-semibold text-muted">Dependientes activos</h2>
       {alerts.map((alert) => (
-        <article key={alert.tipo + alert.junior_nombre} className="panel border-warning p-4 text-sm">
-          <p className="font-semibold text-warning">{alert.tipo}</p>
+        <article key={alert.tipo + alert.junior_nombre} className={`panel p-4 text-sm ${alert.severity === "high" ? "border-[#F43F5E]" : "border-warning"}`}>
+          <p className={`font-semibold ${alert.severity === "high" ? "text-[#F43F5E]" : "text-warning"}`}>{alert.badge || alert.tipo}</p>
           <p className="mt-1">{alert.mensaje}</p>
           <p className="mt-1 text-muted">{alert.sugerencia}</p>
         </article>

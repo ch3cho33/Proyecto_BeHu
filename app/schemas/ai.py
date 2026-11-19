@@ -23,6 +23,8 @@ class ParentalAlert(BaseModel):
     tipo: str
     mensaje: str
     sugerencia: str
+    severity: str = "medium"
+    badge: str | None = None
 
 
 class AiHistoryItem(BaseModel):

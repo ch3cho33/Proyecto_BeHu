@@ -2,7 +2,7 @@
 
 Plataforma Fintech de cuentas transaccionales, control parental e IA predictiva (BeHu Mini) para el mercado colombiano — Jäger Group (Pontificia Universidad Javeriana).
 
-**v3.0.0** es el neobanco familiar sandbox: el mismo ledger de partida doble, ahora con invitación por consentimiento, regla 50/30/20, bloqueo de tarjeta Junior y BeHu Mini por reglas. No hay ACH ni redes de tarjetas reales. API y PWA salen juntas en Vercel Services; Postgres va en Neon y los hábitos en MongoDB Atlas.
+**v3.1.0** es el neobanco familiar sandbox: el mismo ledger de partida doble, ahora con invitación por consentimiento, regla 50/30/20, bloqueo de tarjeta Junior y BeHu Mini por reglas. No hay ACH ni redes de tarjetas reales. API y PWA salen juntas en Vercel Services; Postgres va en Neon y los hábitos en MongoDB Atlas.
 
 ## Arquitectura
 
@@ -32,7 +32,7 @@ Fondos `#090D16`, `#0F1422`, `#111726`, `#161E31`, `#1A2338`. Bordes `#1E293B` y
 
 ## BeHu Mini
 
-No hay LLM. El motor lee saldo líquido, saldo congelado, límites y la regla 50/30/20. Marca gasto hormiga con 3 compras pequeñas de comida u ocio en 48 horas. Si el Junior fuerza una compra, el Score baja y el Senior recibe la alerta en `GET /api/v1/ai/parental-alerts`. El Senior recibe un fondo de emergencia de 3 a 6 meses y la pista de CDT o fondo conservador. El Junior recibe un abono sugerido para la meta activa.
+No hay LLM. El motor lee saldo líquido, saldo congelado, límites y la regla 50/30/20. Marca gasto hormiga con 3 compras pequeñas de comida u ocio en 48 horas. Si la nota, el comercio o la categoría trae un término de riesgo (apuesta, licor, vape, skins, recarga de juego), `GET /api/v1/ai/parental-alerts` responde `severity: high` y el badge «Gasto No Pertinente», con el monto y la alternativa de mandarlo a la meta o al redondeo. En `POST /api/v1/ai/consult`, Senior y Junior ven ese principal proyectado a 3 y 6 meses a un CDT sandbox del 1% mensual. Si el Junior fuerza una compra, el Score baja. El Senior recibe un fondo de emergencia de 3 a 6 meses. El Junior recibe un abono sugerido para la meta activa.
 
 ## Stack
 
@@ -121,6 +121,10 @@ source .venv/bin/activate
 pip install -r requirements.txt
 pytest -q
 ```
+
+## Release v3.1.0
+
+BeHu Mini avisa al Senior cuando el Junior registra un gasto no pertinente, aunque el monto sea bajo, y dice cuánto se recuperaría a 3 y 6 meses si ese dinero hubiera ido a una meta o a un CDT. En escritorio el menú es un dock flotante; en el teléfono la barra inferior también flota. La PWA se instala con `frontend/public/manifest.webmanifest` (`standalone`, `#090D16`) y los meta de Apple.
 
 ## Release v3.0.0
 

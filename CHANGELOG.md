@@ -2,6 +2,15 @@
 
 Todos los cambios relevantes del backend BeHu se registran aquí.
 
+## [3.1.0] — 2026-11-19 — Mini, dock y PWA
+
+### Added
+
+- BeHu Mini marca compras con términos de riesgo (`cerveza`, `apuesta`, `vape`, `skins` y el resto del léxico) como alerta `GASTO_NO_PERTINENTE` con severidad alta y una sugerencia para redirigir ese monto a la meta o al redondeo.
+- La consulta de BeHu Mini, para Senior y Junior, proyecta el monto recuperable de esos gastos y de los hormiga a 3 y 6 meses con un CDT sandbox al 1% mensual.
+- El menú de escritorio es un dock flotante con isotipo, badge de alertas o invitaciones y tarjeta de perfil con llave y Score. En el teléfono la barra inferior también flota, con área segura.
+- El manifiesto PWA usa el nombre «BeHu — Neobanco Familiar», `display: standalone`, fondo `#090D16` e iconos PNG. Safari recibe los meta de Apple Web App.
+
 ## [3.0.0] — 2026-11-19 — Flujo de app
 
 ### Added

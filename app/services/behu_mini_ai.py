@@ -1,5 +1,7 @@
 """Motor contextual BeHu Mini (sandbox, sin LLM externo)."""
 
+import re
+import unicodedata
 from collections import Counter
 from decimal import Decimal
 
@@ -13,6 +15,85 @@ from app.schemas.ai import AiConsultResponse, AiHistoryItem
 from app.services.account_service import get_cuenta_usuario
 from app.services.ai_store import guardar_habito, guardar_recomendacion, historial
 from app.services.ledger_service import saldo_desde_ledger
+
+TERMINOS_NO_PERTINENTES = (
+    "recarga juego",
+    "videojuegos",
+    "discoteca",
+    "apuesta",
+    "casino",
+    "cigarro",
+    "cerveza",
+    "licor",
+    "skins",
+    "vape",
+    "bet",
+    "bar",
+)
+TASA_CDT_MENSUAL = Decimal("0.01")
+
+
+def _fold(texto: str) -> str:
+    base = unicodedata.normalize("NFKD", texto)
+    return "".join(ch for ch in base if not unicodedata.combining(ch)).lower()
+
+
+def termino_no_pertinente(*partes: str | None) -> str | None:
+    plano = _fold(" ".join(parte for parte in partes if parte))
+    for termino in TERMINOS_NO_PERTINENTES:
+        patron = _fold(termino)
+        if " " in patron:
+            if patron in plano:
+                return termino
+            continue
+        if re.search(rf"(?<![a-z0-9]){re.escape(patron)}(?![a-z0-9])", plano):
+            return termino
+    return None
+
+
+def proyectar_recuperable(principal: Decimal) -> tuple[Decimal, Decimal]:
+    def futuro(meses: int) -> Decimal:
+        return (principal * ((Decimal("1") + TASA_CDT_MENSUAL) ** meses)).quantize(Decimal("1"))
+
+    return futuro(3), futuro(6)
+
+
+def _principal_recuperable(compras: list[Transaccion]) -> tuple[Decimal, str]:
+    from app.services.neobank_service import ids_hormiga
+
+    hormiga = ids_hormiga(compras)
+    vistos: set = set()
+    total = Decimal("0")
+    hay_vicio = False
+    hay_hormiga = False
+    for tx in compras:
+        marca = termino_no_pertinente(tx.notas, tx.comercio, tx.descripcion, tx.categoria)
+        if not marca and tx.id not in hormiga:
+            continue
+        if tx.id in vistos:
+            continue
+        vistos.add(tx.id)
+        total += Decimal(tx.monto)
+        hay_vicio = hay_vicio or bool(marca)
+        hay_hormiga = hay_hormiga or tx.id in hormiga
+    if hay_vicio and hay_hormiga:
+        etiqueta = "gastos hormiga y no pertinentes"
+    elif hay_vicio:
+        etiqueta = "gastos no pertinentes"
+    else:
+        etiqueta = "gastos hormiga"
+    return total, etiqueta
+
+
+def _texto_recuperable(principal: Decimal, etiqueta: str) -> str | None:
+    if principal <= 0:
+        return None
+    tres, seis = proyectar_recuperable(principal)
+    return (
+        f"Hay {principal:.0f} COP en {etiqueta}. "
+        f"Si ese dinero se hubiera enviado a una meta o a un CDT al 1% mensual, "
+        f"el monto recuperable sería {tres:.0f} COP a 3 meses y {seis:.0f} COP a 6 meses."
+    )
 
 
 def _consejo_junior(saldo: Decimal, categorias: Counter, metas: list[MetaAhorro]) -> list[str]:
@@ -134,6 +215,12 @@ async def consultar(db: AsyncSession, usuario: Usuario, pregunta: str | None) ->
             "El excedente que quede después de esa reserva puede ir a un CDT o a un fondo conservador de renta fija."
         )
 
+    compras_nucleo = await _compras_para_consejo(db, usuario, cuenta.id, list(movimientos))
+    principal, etiqueta = _principal_recuperable(compras_nucleo)
+    aviso = _texto_recuperable(principal, etiqueta)
+    if aviso:
+        recomendaciones.insert(0, aviso)
+
     contexto = {
         "saldo": f"{saldo:.2f}",
         "moneda": cuenta.moneda,
@@ -234,7 +321,64 @@ async def alertas_parentales(db: AsyncSession, usuario: Usuario) -> list:
                     sugerencia="Revisa el movimiento y, si se repite, bloquea la tarjeta desde Gestión familiar.",
                 )
             )
+        marcados = [
+            (termino, tx)
+            for tx in compras
+            if (termino := termino_no_pertinente(tx.notas, tx.comercio, tx.descripcion, tx.categoria))
+        ]
+        if marcados:
+            total = sum((Decimal(tx.monto) for _, tx in marcados), Decimal("0"))
+            conceptos = ", ".join(dict.fromkeys(termino for termino, _ in marcados))
+            alertas.append(
+                ParentalAlert(
+                    junior_id=str(junior_cuenta.id),
+                    junior_nombre=nombre,
+                    tipo="GASTO_NO_PERTINENTE",
+                    mensaje=f"{nombre} registró «{conceptos}» por {total:.0f} COP.",
+                    sugerencia=(
+                        f"Sugerencia BeHu Mini: Redirigir estos ${total:.0f} COP hacia la meta activa "
+                        "o activar el redondeo automático para compensar el impacto en el Score"
+                    ),
+                    severity="high",
+                    badge="Gasto No Pertinente",
+                )
+            )
     return alertas
+
+
+async def _compras_para_consejo(db: AsyncSession, usuario: Usuario, cuenta_id, propias: list[Transaccion]) -> list[Transaccion]:
+    compras = [tx for tx in propias if tx.tipo == TipoTransaccion.COMPRA.value and tx.estado == "COMPLETADA"]
+    if usuario.rol != "SENIOR":
+        return compras
+    from app.models.account import Cuenta
+    from app.models.supervision import EstadoSupervision, SupervisionCuenta
+
+    vinculos = (
+        await db.scalars(
+            select(SupervisionCuenta).where(
+                SupervisionCuenta.cuenta_senior_id == cuenta_id,
+                SupervisionCuenta.estado == EstadoSupervision.ACTIVA.value,
+            )
+        )
+    ).all()
+    for vinculo in vinculos:
+        junior_cuenta = await db.get(Cuenta, vinculo.cuenta_junior_id)
+        if junior_cuenta is None:
+            continue
+        extra = (
+            await db.scalars(
+                select(Transaccion)
+                .where(
+                    Transaccion.iniciada_por_usuario_id == junior_cuenta.usuario_id,
+                    Transaccion.tipo == TipoTransaccion.COMPRA.value,
+                    Transaccion.estado == "COMPLETADA",
+                )
+                .order_by(Transaccion.created_at.desc())
+                .limit(40)
+            )
+        ).all()
+        compras.extend(extra)
+    return compras
 
 
 async def listar_historial(usuario: Usuario) -> list[AiHistoryItem]:
