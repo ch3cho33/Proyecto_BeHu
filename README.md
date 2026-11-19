@@ -85,7 +85,9 @@ docker compose exec backend python scripts/seed_sandbox.py
 
 ## Rama de trabajo
 
-Sprint 2: `feature/sprint-2-ia-habitos-y-docker` → integrar en `develop`.
+Sprint 3: `feature/sprint-3-scoring-educacion-pwa` → integrar en `develop`.
+
+Despliegue: [docs/deployment.md](docs/deployment.md). Score: `GET /api/v1/scoring/me`. Academia: `GET /api/v1/education/modules`. Si cambió el esquema, borra `behu_sandbox.db` y vuelve a correr el seed.
 
 ## Despliegue objetivo
 

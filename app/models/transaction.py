@@ -59,6 +59,11 @@ class Transaccion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
         default=False,
     )
+    forzada: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
 
     iniciada_por: Mapped[Usuario] = relationship("Usuario")
     asientos: Mapped[list[LedgerContable]] = relationship(

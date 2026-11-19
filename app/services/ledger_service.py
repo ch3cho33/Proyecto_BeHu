@@ -59,6 +59,7 @@ async def transferir(
     es_transferencia_global: bool = False,
     categoria: str | None = None,
     comercio: str | None = None,
+    forzada: bool = False,
 ) -> Transaccion:
     """Débito origen / crédito destino en una sola transacción SQL."""
     monto = Decimal(monto).quantize(Decimal("0.01"))
@@ -90,6 +91,7 @@ async def transferir(
         es_transferencia_global=es_transferencia_global,
         categoria=categoria,
         comercio=comercio,
+        forzada=forzada,
     )
     db.add(transaccion)
     await db.flush()

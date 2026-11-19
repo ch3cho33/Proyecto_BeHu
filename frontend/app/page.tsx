@@ -22,6 +22,24 @@ type Goal = {
 };
 type Junior = { cuenta_junior_id: string; nombres: string; apellidos: string; saldo: string };
 type Advice = { resumen: string; recomendaciones: string[]; fuente: string };
+type Score = {
+  puntaje: number;
+  nivel: string;
+  color: string;
+  consejos: string[];
+  factores_positivos: { etiqueta: string; puntos: number }[];
+  factores_negativos: { etiqueta: string; puntos: number }[];
+};
+type Lesson = {
+  id: string;
+  titulo: string;
+  resumen: string;
+  pregunta: string;
+  opciones: string[];
+  completado: boolean;
+  insignia: string;
+  insignia_obtenida: string | null;
+};
 
 function money(value: string | number) {
   return new Intl.NumberFormat("es-CO", {
@@ -62,6 +80,8 @@ export default function HomePage() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [juniors, setJuniors] = useState<Junior[]>([]);
   const [advice, setAdvice] = useState<Advice | null>(null);
+  const [score, setScore] = useState<Score | null>(null);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState("senior@behu.test");
@@ -71,14 +91,21 @@ export default function HomePage() {
   async function refresh(activeToken: string, rol: User["rol"]) {
     const me = await api<{ account: Account }>(`/accounts/me`, activeToken);
     const metas = await api<Goal[]>(`/goals`, activeToken);
+    const salud = await api<Score>(`/scoring/me`, activeToken);
+    const academia = await api<Lesson[]>(`/education/modules`, activeToken);
     setAccount(me.account);
     setGoals(metas);
+    setScore(salud);
+    setLessons(academia);
     if (rol === "SENIOR") {
       setJuniors(await api<Junior[]>(`/supervision/juniors`, activeToken));
     }
   }
 
   useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+    }
     const saved = localStorage.getItem("behu_session");
     if (!saved) return;
     const session = JSON.parse(saved) as { token: string; user: User };
@@ -195,6 +222,33 @@ export default function HomePage() {
           </p>
         )}
       </section>
+
+      {score && (
+        <section className="mt-4 rounded-3xl bg-white p-5">
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-sm text-ink/60">Score BeHu</p>
+              <p className="text-3xl font-semibold" style={{ color: score.color }}>
+                {score.puntaje}
+              </p>
+            </div>
+            <p className="text-sm font-medium" style={{ color: score.color }}>
+              {score.nivel}
+            </p>
+          </div>
+          <div className="mt-3 h-3 rounded-full bg-sand">
+            <div
+              className="h-3 rounded-full"
+              style={{ width: `${score.puntaje}%`, backgroundColor: score.color }}
+            />
+          </div>
+          <ul className="mt-3 space-y-1 text-sm text-ink/80">
+            {score.consejos.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {error && <p className="mt-4 rounded-2xl bg-clay/10 px-4 py-3 text-sm text-clay">{error}</p>}
       {notice && <p className="mt-4 rounded-2xl bg-moss/10 px-4 py-3 text-sm text-moss">{notice}</p>}
@@ -320,6 +374,54 @@ export default function HomePage() {
             </form>
           )}
         </article>
+      </section>
+
+      <section className="mt-4 rounded-3xl bg-white p-5">
+        <h2 className="font-semibold">Academia BeHu</h2>
+        <div className="mt-4 space-y-4">
+          {lessons.map((lesson) => (
+            <article key={lesson.id} className="rounded-2xl bg-sand p-4">
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="font-medium">{lesson.titulo}</h3>
+                {lesson.completado && (
+                  <span className="rounded-full bg-moss px-2 py-1 text-xs text-white">
+                    {lesson.insignia_obtenida}
+                  </span>
+                )}
+              </div>
+              <p className="mt-2 text-sm text-ink/80">{lesson.resumen}</p>
+              {!lesson.completado && (
+                <form
+                  className="mt-3 space-y-2"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const form = new FormData(event.currentTarget);
+                    run(async () => {
+                      const result = await api<{ mensaje: string }>(
+                        `/education/modules/${lesson.id}/complete`,
+                        token,
+                        {
+                          method: "POST",
+                          body: JSON.stringify({ respuesta: form.get("respuesta") }),
+                        },
+                      );
+                      setNotice(result.mensaje);
+                    });
+                  }}
+                >
+                  <p className="text-sm font-medium">{lesson.pregunta}</p>
+                  {lesson.opciones.map((opcion, index) => (
+                    <label key={opcion} className="flex items-center gap-2 text-sm">
+                      <input type="radio" name="respuesta" value={String(index)} required />
+                      {opcion}
+                    </label>
+                  ))}
+                  <button className="rounded-xl bg-ink px-3 py-2 text-sm text-white">Responder</button>
+                </form>
+              )}
+            </article>
+          ))}
+        </div>
       </section>
 
       <section className="mt-4 rounded-3xl bg-white p-5">

@@ -93,6 +93,7 @@ Cabecera de negocio de un movimiento. No sustituye al ledger.
 | `comercio` | VARCHAR(120) | NULL |
 | `iniciada_por_usuario_id` | UUID | FK `usuario.id`, NOT NULL |
 | `es_transferencia_global` | BOOLEAN | NOT NULL, default false (oculta a perfiles Junior) |
+| `forzada` | BOOLEAN | NOT NULL, default false (compra confirmada pese a la alerta) |
 | `created_at` | TIMESTAMPTZ | NOT NULL |
 | `updated_at` | TIMESTAMPTZ | NOT NULL |
 
@@ -173,6 +174,14 @@ Meta de ahorro (HU-06). El abono no es un update de saldo suelto: débito de la 
 | `created_at` / `updated_at` | TIMESTAMPTZ | NOT NULL |
 
 `cuenta.limite_gasto_semanal` (NUMERIC, NULL) alimenta el motor anti-impulsos junto con el límite diario. `cuenta.tipo` también admite `SANDBOX_MERCHANT` y `SANDBOX_META`.
+
+### 1.9 `modulo_educativo` y `progreso_educativo`
+
+Cápsulas de Academia BeHu (HU-09). El seed carga tres módulos: CDT e interés compuesto, regla 50/30/20 y gasto hormiga.
+
+`modulo_educativo`: `id`, `slug` único, `titulo`, `resumen`, `pregunta`, `opciones_json`, `respuesta_correcta`, `insignia`, `orden`.
+
+`progreso_educativo`: `usuario_id`, `modulo_id`, `completado`, `insignia`, `respondido_en`. Unique (`usuario_id`, `modulo_id`). Un quiz correcto suma al Score BeHu; no se puede completar dos veces.
 
 ---
 
