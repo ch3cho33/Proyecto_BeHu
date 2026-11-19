@@ -4,6 +4,16 @@ BeHu v1.0.0 es el sandbox académico completo: cuentas Senior/Junior, ledger de 
 
 El proyecto se publica como **un solo proyecto de Vercel Services** (`vercel.json` en la raíz). El mismo dominio sirve la PWA y el API.
 
+## Panel de Vercel
+
+En **Project Settings → Build and Deployment**, **Root Directory** tiene que ser `.` (la raíz del repo, donde está `vercel.json`). Si queda en `frontend`, Vercel ignora `vercel.json`, no despliega el servicio `app` y `/api/v1/auth/login` lo responde Next con HTML. El login entonces muestra «No se pudo completar la operación».
+
+`frontend/next.config.ts` no define `rewrites` ni `basePath`. No compite con las rutas de `vercel.json`. El orden del manifiesto es el correcto: `/api/(.*)`, Swagger y `/health` van a `app`; el catch-all `/(.*)` va a `frontend`.
+
+En **Project Settings → Environment Variables**, asigna cada variable a **All Services**. Si `DATABASE_URL` o `AUTO_SEED_SANDBOX` quedan solo en `frontend`, el servicio `app` no las ve. Sin `DATABASE_URL` y con `VERCEL=1`, el API usa `sqlite+aiosqlite:////tmp/behu_sandbox.db` (escribible). Ese archivo vive solo en la instancia y se pierde al reciclarla. Para el sandbox que sobrevive entre deploys, pon la URI de Neon en `DATABASE_URL` para **All Services**.
+
+Después del deploy, `GET /api/health` dice qué vio la función: `dialect` (`postgresql` o `sqlite`), `vercel` y `auto_seed`.
+
 | Servicio | Raíz | Qué es |
 | --- | --- | --- |
 | `app` | `.` | FastAPI (`app.main:app`) |
@@ -23,8 +33,8 @@ No hay binding interno. El navegador llama a `/api/v1` en el mismo origen. Un bi
 
 | Variable | Dónde | Valor |
 | --- | --- | --- |
-| `DATABASE_URL` | servicio `app` | URI de Neon o Supabase. `postgres://` se convierte a `postgresql+asyncpg://`. `sslmode` y `channel_binding` se quitan de la URL; el engine pasa SSL por `connect_args` si el host no es local. |
-| `AUTO_SEED_SANDBOX` | `app` | `true` solo en este sandbox. El arranque crea tablas, `senior@behu.test`, `junior@behu.test` y las 3 cápsulas. Un reinicio no duplica filas. |
+| `DATABASE_URL` | **All Services** | URI de Neon o Supabase. `postgres://` se convierte a `postgresql+asyncpg://`. `sslmode` y `channel_binding` se quitan de la URL; el engine pasa SSL por `connect_args` si el host no es local. Si falta, Vercel cae a SQLite en `/tmp`. |
+| `AUTO_SEED_SANDBOX` | **All Services** | `true` solo en este sandbox. El arranque crea tablas, `senior@behu.test`, `junior@behu.test` y las 3 cápsulas. Un reinicio no duplica filas. |
 | `AUTO_CREATE_TABLES` | `app` | `false` si el seed ya crea el esquema |
 | `JWT_SECRET` | `app` | 32 caracteres o más |
 | `MONGODB_URI` | `app` | `mongodb+srv://...` de Atlas |
@@ -32,7 +42,7 @@ No hay binding interno. El navegador llama a `/api/v1` en el mismo origen. Un bi
 | `FRONTEND_URL` | `app` | URL pública de Vercel, por si un cliente externo llama al API |
 | `NEXT_PUBLIC_API_URL` | `frontend` | Déjala **vacía** en Vercel. El build de producción usa `/api/v1`. En local el ejemplo apunta a `http://127.0.0.1:8000/api/v1`. |
 
-No uses SQLite en Vercel: el disco de la función desaparece. Sin `DATABASE_URL` de Postgres el seed no sobrevive al siguiente arranque.
+Sin `DATABASE_URL`, Vercel no intenta crear `./behu_sandbox.db` en `/var/task`. Usa `/tmp/behu_sandbox.db`, que sí se puede escribir, pero no sobrevive al siguiente arranque de la función. Neon sigue siendo la base del sandbox estable.
 
 Usuarios del seed: `senior@behu.test` / `BeHuSenior1!` y `junior@behu.test` / `BeHuJunior1!`.
 

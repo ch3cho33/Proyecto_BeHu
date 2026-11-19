@@ -1,5 +1,6 @@
 """Configuración 12-factor (Pydantic Settings)."""
 
+import os
 from functools import lru_cache
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -22,9 +23,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     debug: bool = False
 
-    database_url: str = Field(
-        default="sqlite+aiosqlite:///./behu_sandbox.db"
-    )
+    database_url: str = Field(default="sqlite+aiosqlite:///./behu_sandbox.db")
     auto_create_tables: bool = Field(default=True)
     auto_seed_sandbox: bool = Field(default=False)
     mongodb_uri: str = Field(default="mongodb://localhost:27017")
@@ -48,6 +47,9 @@ class Settings(BaseSettings):
     @field_validator("database_url")
     @classmethod
     def normalize_database_url(cls, value: str) -> str:
+        # /var/task es de solo lectura. Sin DATABASE_URL, Vercel escribe en /tmp.
+        if os.getenv("VERCEL") and value in {"", "sqlite+aiosqlite:///./behu_sandbox.db"}:
+            return "sqlite+aiosqlite:////tmp/behu_sandbox.db"
         if value.startswith("postgres://"):
             value = "postgresql+asyncpg://" + value[len("postgres://") :]
         elif value.startswith("postgresql://") and "+asyncpg" not in value.split("://", 1)[0]:

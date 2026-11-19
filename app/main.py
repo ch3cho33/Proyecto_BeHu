@@ -5,6 +5,7 @@ no se recorta /api ni se define root_path.
 """
 
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -70,12 +71,23 @@ app.add_middleware(
 )
 
 
+def _database_dialect(url: str) -> str:
+    if url.startswith("postgresql"):
+        return "postgresql"
+    if url.startswith("sqlite"):
+        return "sqlite"
+    return url.split("+", 1)[0].split(":", 1)[0] or "unknown"
+
+
 @app.get("/health", tags=["ops"])
 @app.get("/api/health", tags=["ops"])
-async def healthcheck() -> dict[str, str]:
-    """Liveness sin base de datos. Sirve para separar un fallo de import de un fallo de Neon."""
+async def healthcheck() -> dict[str, str | bool]:
+    """Liveness sin abrir la base. El dialecto sale de la URL ya normalizada."""
     return {
         "status": "ok",
+        "dialect": _database_dialect(settings.database_url),
+        "vercel": bool(os.getenv("VERCEL")),
+        "auto_seed": settings.auto_seed_sandbox,
         "service": settings.app_name,
         "version": settings.app_version,
         "environment": settings.environment,

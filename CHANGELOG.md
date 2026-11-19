@@ -2,6 +2,14 @@
 
 Todos los cambios relevantes del backend BeHu se registran aquí.
 
+## [1.0.4] — 2026-11-19 — SQLite en /tmp
+
+### Fixed
+
+- Sin `DATABASE_URL`, y con `VERCEL=1`, el fallback deja de ser `./behu_sandbox.db` (solo lectura en `/var/task`) y pasa a `sqlite+aiosqlite:////tmp/behu_sandbox.db`.
+- `GET /api/health` y `GET /health` incluyen `dialect`, `vercel` y `auto_seed` para ver qué base recibió el servicio `app`.
+- `docs/deployment.md` fija Root Directory en `.` y las variables en **All Services**. `next.config.ts` no reescribe `/api`.
+
 ## [1.0.3] — 2026-11-19 — Runtime Python en Vercel
 
 ### Fixed
