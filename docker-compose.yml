@@ -1,0 +1,28 @@
+services:
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      ENVIRONMENT: development
+      AUTO_CREATE_TABLES: "true"
+      DATABASE_URL: sqlite+aiosqlite:///./data/behu_sandbox.db
+      MONGODB_URI: mongodb://mongodb:27017
+      MONGODB_DB: behu
+      JWT_SECRET: behu-sandbox-docker-jwt-secret-32
+      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+    volumes:
+      - behu-data:/app/data
+    depends_on:
+      - mongodb
+
+  mongodb:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - behu-mongo:/data/db
+
+volumes:
+  behu-data:
+  behu-mongo:
