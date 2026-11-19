@@ -8,8 +8,7 @@ from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Numeric, String, func
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Numeric, String, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -33,18 +32,18 @@ class LedgerContable(Base):
     )
 
     id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         primary_key=True,
         default=uuid4,
     )
     transaccion_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("transaccion.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
     )
     cuenta_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("cuenta.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,

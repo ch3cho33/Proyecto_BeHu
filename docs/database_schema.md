@@ -38,8 +38,8 @@ Herencia de tabla única (`polymorphic_on = tipo`). `SENIOR` y `JUNIOR` comparte
 | --- | --- | --- |
 | `id` | UUID | PK |
 | `usuario_id` | UUID | FK `usuario.id`, UNIQUE, NOT NULL |
-| `tipo` | VARCHAR(20) | NOT NULL, `SENIOR` \| `JUNIOR` (discriminador) |
-| `saldo` | NUMERIC(18, 2) | NOT NULL, default 0, CHECK `>= 0` |
+| `tipo` | VARCHAR(20) | NOT NULL, `SENIOR` \| `JUNIOR` \| `SANDBOX_FLOAT` \| `SANDBOX_EQUITY` |
+| `saldo` | NUMERIC(18, 2) | NOT NULL, default 0, CHECK `>= 0` excepto `SANDBOX_EQUITY` |
 | `moneda` | CHAR(3) | NOT NULL, default `COP` |
 | `estado` | VARCHAR(20) | NOT NULL, `ACTIVA` \| `BLOQUEADA` \| `CERRADA` |
 | `limite_gasto_diario` | NUMERIC(18, 2) | NULL (junior) |
@@ -54,6 +54,8 @@ Mapeo POO:
 - `Cuenta` → filas de `cuenta`
 - `CuentaSenior` → `tipo = SENIOR`
 - `CuentaJunior` → `tipo = JUNIOR`
+- `CuentaSandboxFloat` → `tipo = SANDBOX_FLOAT` (puente de liquidez del sandbox)
+- `CuentaSandboxEquity` → `tipo = SANDBOX_EQUITY` (contrapartida de emisión de capital)
 
 ### 1.3 `supervision_cuenta`
 
@@ -82,13 +84,16 @@ Cabecera de negocio de un movimiento. No sustituye al ledger.
 | Columna | Tipo | Restricciones |
 | --- | --- | --- |
 | `id` | UUID | PK |
-| `tipo` | VARCHAR(32) | NOT NULL (`TRANSFERENCIA_INTERNA`, `ASIGNACION_PRESUPUESTO`, `REVERSO`) |
+| `tipo` | VARCHAR(32) | NOT NULL (`TRANSFERENCIA_INTERNA`, `ASIGNACION_PRESUPUESTO`, `APERTURA_SANDBOX`, `COMPRA`, `ABONO_META`, `REVERSO`) |
 | `estado` | VARCHAR(20) | NOT NULL, `PENDIENTE` \| `COMPLETADA` \| `RECHAZADA` |
 | `monto` | NUMERIC(18, 2) | NOT NULL, CHECK `> 0` |
 | `moneda` | CHAR(3) | NOT NULL, default `COP` |
 | `descripcion` | VARCHAR(280) | NULL |
+| `categoria` | VARCHAR(32) | NULL (`COMIDA`, `ENTRETENIMIENTO`, `TRANSPORTE`, `EDUCACION`, `ROPA`) |
+| `comercio` | VARCHAR(120) | NULL |
 | `iniciada_por_usuario_id` | UUID | FK `usuario.id`, NOT NULL |
 | `es_transferencia_global` | BOOLEAN | NOT NULL, default false (oculta a perfiles Junior) |
+| `forzada` | BOOLEAN | NOT NULL, default false (compra confirmada pese a la alerta) |
 | `created_at` | TIMESTAMPTZ | NOT NULL |
 | `updated_at` | TIMESTAMPTZ | NOT NULL |
 
@@ -141,6 +146,43 @@ Flujo atómico (una transacción SQL):
 | `origen_modelo` | VARCHAR |
 | `created_at` / `updated_at` | TIMESTAMPTZ |
 
+### 1.7 `categoria_gasto`
+
+Catálogo de comercios simulados (HU-07).
+
+| Columna | Tipo | Restricciones |
+| --- | --- | --- |
+| `codigo` | VARCHAR(32) | PK |
+| `nombre` | VARCHAR(80) | NOT NULL |
+
+Códigos: `COMIDA`, `ENTRETENIMIENTO`, `TRANSPORTE`, `EDUCACION`, `ROPA`.
+
+### 1.8 `meta_ahorro`
+
+Meta de ahorro (HU-06). El abono no es un update de saldo suelto: débito de la cuenta del usuario y crédito de `SANDBOX_META`.
+
+| Columna | Tipo | Restricciones |
+| --- | --- | --- |
+| `id` | UUID | PK |
+| `cuenta_id` | UUID | FK `cuenta.id`, NOT NULL |
+| `nombre` | VARCHAR(80) | NOT NULL |
+| `monto_objetivo` | NUMERIC(18, 2) | NOT NULL, CHECK `> 0` |
+| `monto_actual` | NUMERIC(18, 2) | NOT NULL, default 0, CHECK `>= 0` |
+| `fecha_limite` | DATE | NOT NULL |
+| `estado` | VARCHAR(20) | `ACTIVA` \| `COMPLETADA` \| `CANCELADA` |
+| `completada_en` | TIMESTAMPTZ | NULL |
+| `created_at` / `updated_at` | TIMESTAMPTZ | NOT NULL |
+
+`cuenta.limite_gasto_semanal` (NUMERIC, NULL) alimenta el motor anti-impulsos junto con el límite diario. `cuenta.tipo` también admite `SANDBOX_MERCHANT` y `SANDBOX_META`.
+
+### 1.9 `modulo_educativo` y `progreso_educativo`
+
+Cápsulas de Academia BeHu (HU-09). El seed carga tres módulos: CDT e interés compuesto, regla 50/30/20 y gasto hormiga.
+
+`modulo_educativo`: `id`, `slug` único, `titulo`, `resumen`, `pregunta`, `opciones_json`, `respuesta_correcta`, `insignia`, `orden`.
+
+`progreso_educativo`: `usuario_id`, `modulo_id`, `completado`, `insignia`, `respondido_en`. Unique (`usuario_id`, `modulo_id`). Un quiz correcto suma al Score BeHu; no se puede completar dos veces.
+
 ---
 
 ## 2. MongoDB
@@ -174,9 +216,10 @@ Logs y contexto de recomendaciones.
   "_id": "ObjectId",
   "usuario_id": "uuid-string",
   "cuenta_id": "uuid-string",
-  "modelo": "behu-mini",
-  "prompt_contexto": {},
-  "recomendacion": {},
+  "modelo": "behu-mini-rules",
+  "rol": "SENIOR | JUNIOR",
+  "recomendaciones": [],
+  "contexto": {},
   "aceptada": null,
   "created_at": "ISO-8601"
 }

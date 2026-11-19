@@ -2,6 +2,54 @@
 
 Todos los cambios relevantes del backend BeHu se registran aquí.
 
+## [0.4.0] — 2026-11-19 — Sprint 3
+
+### Added
+
+- Score BeHu `GET /api/v1/scoring/me`: puntaje 0-100, nivel, factores y consejos a partir del ledger, metas, compras forzadas y academia.
+- Academia BeHu: `modulo_educativo`, `progreso_educativo`, tres cápsulas con quiz, insignia y puntos de score.
+- Compras con `forzada=true` quedan marcadas para el score.
+- PWA: manifiesto, iconos, service worker y Score/Academia en el dashboard.
+- `FRONTEND_URL` se suma a CORS. `render.yaml` y `docs/deployment.md` para Render, Postgres y MongoDB Atlas.
+- `app/core/storage.py`: KYC en S3 con boto3 o en `data/kyc/` si no hay credenciales.
+
+### Notes
+
+- Recrea `behu_sandbox.db` para la columna `forzada` y las tablas educativas.
+- En producción `AUTO_CREATE_TABLES` queda en false; el esquema se crea con el comando de `docs/deployment.md`.
+
+## [0.3.0] — 2026-11-19 — Sprint 2
+
+### Added
+
+- Compra simulada `POST /api/v1/transactions/spend` con catálogo `categoria_gasto` y alerta anti-impulsos (`409 GASTO_IMPULSIVO`) si se supera el límite diario/semanal o el 40% del saldo.
+- Metas de ahorro (`meta_ahorro`): crear, listar progreso y abonar. El abono congela saldo con partida doble hacia `SANDBOX_META`.
+- BeHu Mini: `POST /api/v1/ai/consult` y `GET /api/v1/ai/history`. MongoDB con fallback JSON local.
+- Cuentas internas `SANDBOX_MERCHANT` y `SANDBOX_META`.
+- `Dockerfile` y `docker-compose.yml` (API + Mongo).
+- Frontend Next.js en `frontend/` (login, dashboard Senior/Junior, presupuesto, gasto y BeHu Mini).
+
+### Notes
+
+- El asistente es un motor de reglas contextualizado para el sandbox, no un LLM de terceros.
+- Si la base SQLite es de Sprint 1, hay que recrearla (`rm behu_sandbox.db && python scripts/seed_sandbox.py`) para las columnas nuevas.
+
+## [0.2.0] — 2026-11-15 — Sprint 1 / Fase 2
+
+### Added
+
+- Excepciones de dominio y mapeo HTTP (`app/services/exceptions.py`).
+- Servicios: autenticación (registro + cuenta + JWT), supervisión parental, ledger de partida doble atómico, consulta de saldo derivado.
+- API REST v1: `/auth/register`, `/auth/login`, `/accounts/me`, `/supervision/link`, `/supervision/juniors`, `/supervision/link/{id}`, `/transfers/budget`.
+- Sandbox SQLite portable y script `scripts/seed_sandbox.py` (`senior@behu.test` / `junior@behu.test`).
+- Cuentas puente `SANDBOX_FLOAT` y `SANDBOX_EQUITY` para funding inicial sin `UPDATE` suelto de saldo.
+- CORS, `create_all` en desarrollo y handlers JSON `{ "detail": "..." }`.
+
+### Notes
+
+- MVP académico: no hay ACH, redes de tarjetas ni KMS/S3 cableados.
+- Perfil Junior no ve movimientos con `es_transferencia_global = true`.
+
 ## [0.1.0] — 2026-10-13 — Sprint 1 / Fase 1
 
 ### Added
@@ -17,5 +65,4 @@ Todos los cambios relevantes del backend BeHu se registran aquí.
 
 ### Notes
 
-- Sin endpoints de negocio (auth, supervisión, transferencias): Fase 2.
 - Integración AWS S3 / KMS documentada, no cableada.
