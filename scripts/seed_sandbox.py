@@ -29,6 +29,7 @@ from app.models.transaction import TipoTransaccion  # noqa: E402
 from app.models.user import RolUsuario, Usuario  # noqa: E402
 from app.services.ledger_service import transferir  # noqa: E402
 from app.services.sandbox_accounts import MERCHANT_EMAIL, META_EMAIL, obtener_cuenta_sistema  # noqa: E402
+from app.services.education_service import asegurar_modulos  # noqa: E402
 from app.services.spend_service import asegurar_catalogo  # noqa: E402
 
 SENIOR_EMAIL = "senior@behu.test"
@@ -168,6 +169,7 @@ async def seed() -> None:
 
         async with AsyncSessionLocal() as extra:
             await asegurar_catalogo(extra)
+            await asegurar_modulos(extra)
             await obtener_cuenta_sistema(extra, MERCHANT_EMAIL)
             await obtener_cuenta_sistema(extra, META_EMAIL)
             await extra.commit()
