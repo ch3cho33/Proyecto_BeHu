@@ -220,6 +220,18 @@ async def consultar(db: AsyncSession, usuario: Usuario, pregunta: str | None) ->
     aviso = _texto_recuperable(principal, etiqueta)
     if aviso:
         recomendaciones.insert(0, aviso)
+    recomendaciones[0:0] = await _lineas_intencion(
+        db,
+        usuario,
+        pregunta,
+        saldo,
+        congelado,
+        cuenta.moneda,
+        metas,
+        compras_nucleo,
+        cuadro,
+    )
+    recomendaciones.insert(0, f"Hola. Tu saldo disponible es {saldo:.2f} {cuenta.moneda}.")
 
     contexto = {
         "saldo": f"{saldo:.2f}",
@@ -259,6 +271,100 @@ async def consultar(db: AsyncSession, usuario: Usuario, pregunta: str | None) ->
         fuente=fuente,
         created_at=documento["created_at"],
     )
+
+
+def _intenciones(pregunta: str | None) -> set[str]:
+    texto = _fold(pregunta or "")
+    halladas: set[str] = set()
+    if any(clave in texto for clave in ("invert", "cdt", "excedent", "rendim")):
+        halladas.add("inversion")
+    if any(clave in texto for clave in ("ahorr", "meta", "gastar", "puedo gastar", "cuanto puedo")):
+        halladas.add("ahorro")
+    if any(clave in texto for clave in ("hormiga", "vicio", "pertinente", "diagnost", "fuga")):
+        halladas.add("diagnostico")
+    if any(clave in texto for clave in ("familiar", "junior", "mesada", "hijo", "dependiente", "parental")):
+        halladas.add("familiar")
+    if not halladas:
+        halladas.add("fallback")
+    return halladas
+
+
+async def _lineas_intencion(
+    db: AsyncSession,
+    usuario: Usuario,
+    pregunta: str | None,
+    saldo: Decimal,
+    congelado: Decimal,
+    moneda: str,
+    metas: list[MetaAhorro],
+    compras: list[Transaccion],
+    cuadro: dict,
+) -> list[str]:
+    from datetime import datetime, timezone
+
+    hoy = datetime.now(timezone.utc).date()
+    if hoy.month == 12:
+        fin_mes = hoy.replace(day=31)
+    else:
+        fin_mes = hoy.replace(month=hoy.month + 1, day=1)
+        from datetime import timedelta
+
+        fin_mes = fin_mes - timedelta(days=1)
+    dias = max(1, (fin_mes - hoy).days + 1)
+    gastos = sum((Decimal(tx.monto) for tx in compras if tx.tipo == TipoTransaccion.COMPRA.value), Decimal("0"))
+    ingresos = Decimal(cuadro["ingresos"] or 0)
+    emergencia = (gastos * Decimal("3")).quantize(Decimal("1"))
+    invertible = max(Decimal("0"), (saldo - emergencia).quantize(Decimal("1")))
+    lineas: list[str] = []
+    for intencion in _intenciones(pregunta):
+        if intencion == "inversion":
+            tres, seis = proyectar_recuperable(invertible)
+            doce = (invertible * ((Decimal("1") + TASA_CDT_MENSUAL) ** 12)).quantize(Decimal("1"))
+            lineas.append(
+                f"Puedes invertir hoy {invertible:.0f} {moneda} sin tocar el fondo de emergencia "
+                f"de 3 meses de gastos ({emergencia:.0f} {moneda}). "
+                f"A un CDT del 1% mensual ese capital llega a {tres:.0f} en 3 meses, {seis:.0f} en 6 y {doce:.0f} en 12."
+            )
+        elif intencion == "ahorro":
+            diaria = (saldo / Decimal(dias)).quantize(Decimal("1"))
+            lineas.append(
+                f"Tu capacidad diaria segura es {diaria:.0f} {moneda} durante los {dias} días que faltan del mes."
+            )
+            for meta in metas:
+                if meta.estado != EstadoMeta.ACTIVA.value:
+                    continue
+                falta = max(Decimal("0"), Decimal(meta.monto_objetivo) - Decimal(meta.monto_actual))
+                lineas.append(f"A la meta «{meta.nombre}» le faltan {falta:.0f} {moneda}.")
+        elif intencion == "diagnostico":
+            fugas = []
+            for tx in compras:
+                termino = termino_no_pertinente(tx.notas, tx.comercio, tx.descripcion, tx.categoria)
+                if termino:
+                    fugas.append(f"{termino} {Decimal(tx.monto):.0f} {moneda}")
+            from app.services.neobank_service import ids_hormiga
+
+            if ids_hormiga(compras):
+                hormiga = sum(Decimal(tx.monto) for tx in compras if tx.id in ids_hormiga(compras))
+                fugas.append(f"hormiga {hormiga:.0f} {moneda}")
+            detalle = ", ".join(fugas) if fugas else "no hay fugas con nombre en los movimientos recientes"
+            lineas.append(
+                f"Fugas recientes: {detalle}. Plan de recorte: congela ese monto en la meta activa y baja el tope de ocio esta semana."
+            )
+        elif intencion == "familiar" and usuario.rol == "SENIOR":
+            alertas = await alertas_parentales(db, usuario)
+            if not alertas:
+                lineas.append("Ningún Junior vinculado tiene alertas abiertas. La mesada puede mantenerse.")
+            else:
+                for alerta in alertas:
+                    lineas.append(f"{alerta.junior_nombre}: {alerta.tipo}. {alerta.sugerencia}")
+        else:
+            ratio = (gastos / ingresos).quantize(Decimal("0.01")) if ingresos else Decimal("0")
+            lineas.append(
+                f"Diagnóstico ejecutivo: liquidez {saldo:.0f} {moneda}, ahorro reservado {congelado:.0f} {moneda}, "
+                f"ratio gasto/ingreso {ratio}. Acciones: 1) aparta un abono a la meta activa. "
+                f"2) revisa el bucket 50/30/20 que más se pasó este mes."
+            )
+    return lineas
 
 
 async def alertas_parentales(db: AsyncSession, usuario: Usuario) -> list:

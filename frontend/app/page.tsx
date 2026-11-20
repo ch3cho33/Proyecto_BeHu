@@ -1,10 +1,11 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { KeyChip, MovementDesk, QuickActions, type Draft } from "./flow";
+import { PublicSite } from "./landing";
 import { Donut, ScoreGauge, Skeleton, Toasts, VirtualCard, WeekBars, labelCategory, type Toast } from "./ui";
-import { BookOpen, Home, LogOut, PieChart, Settings as SettingsIcon, Sparkles, Target, Users, Wallet } from "lucide-react";
+import { Bell, BookOpen, Home, LogOut, PieChart, Settings as SettingsIcon, Sparkles, Target, Users, Wallet } from "lucide-react";
 
 const API =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
@@ -12,7 +13,9 @@ const API =
 
 type Role = "SENIOR" | "JUNIOR";
 type View = "inicio" | "movimientos" | "presupuesto" | "metas" | "familia" | "aprende" | "mini" | "ajustes";
-type User = { nombres: string; apellidos: string; email: string; rol: Role; moneda_preferida?: string; kyc_status?: string };
+type User = { nombres: string; apellidos: string; email: string; rol: Role; moneda_preferida?: string; kyc_status?: string; ingreso_mensual_estimado?: string | null };
+type Note = { id: string; tipo: string; severity: string; titulo: string; detalle: string; sugerencia: string; leida: boolean };
+type Category = { codigo: string; nombre: string; origen: string };
 type Account = {
   account_id?: string;
   saldo: string;
@@ -62,7 +65,7 @@ type Invite = {
   estado: string;
 };
 type Score = { puntaje: number; nivel: string; factores_positivos?: { etiqueta: string; puntos: number }[]; factores_negativos?: { etiqueta: string; puntos: number }[] };
-type Lesson = { id: string; titulo: string; resumen: string; pregunta: string; opciones: string[]; completado: boolean; insignia: string };
+type Lesson = { id: string; titulo: string; resumen: string; pregunta: string; opciones: string[]; completado: boolean; insignia: string; categoria?: string; duracion_min?: number };
 type Advice = { resumen: string; recomendaciones: string[] };
 type Alert = { tipo: string; junior_nombre: string; mensaje: string; sugerencia: string; severity?: string; badge?: string | null };
 type Activity = { id: string; categoria?: string | null; metodo_pago?: string | null; fecha: string; monto: string; is_impulsive: boolean; es_hormiga: boolean; descripcion?: string | null };
@@ -127,21 +130,10 @@ async function api<T>(path: string, token: string | null, init?: RequestInit): P
   return (body ? JSON.parse(body) : {}) as T;
 }
 
-function securePassword(value: string) {
-  return value.length >= 8 && /[A-Z]/.test(value) && /[a-z]/.test(value) && /\d/.test(value);
-}
-
 export default function HomePage() {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [mode, setMode] = useState<"login" | "register">("login");
   const [view, setView] = useState<View>("inicio");
-  const [email, setEmail] = useState("senior@behu.test");
-  const [password, setPassword] = useState("BeHuSenior1!");
-  const [nombres, setNombres] = useState("");
-  const [apellidos, setApellidos] = useState("");
-  const [rol, setRol] = useState<Role>("SENIOR");
-  const [moneda, setMoneda] = useState("COP");
   const [error, setError] = useState("");
   const [account, setAccount] = useState<Account | null>(null);
   const [moves, setMoves] = useState<Move[]>([]);
@@ -158,8 +150,11 @@ export default function HomePage() {
   const [budget, setBudget] = useState<Budget | null>(null);
   const [advice, setAdvice] = useState<Advice | null>(null);
   const [nudge, setNudge] = useState<Nudge | null>(null);
-  const [chat, setChat] = useState<{ role: "user" | "mini"; text: string }[]>([]);
+  const [chat, setChat] = useState<{ role: "user" | "mini"; text: string; points?: string[] }[]>([]);
   const [llave, setLlave] = useState("");
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [bellOpen, setBellOpen] = useState(false);
   const [deskRequest, setDeskRequest] = useState<{ action: "gasto" | "ingreso" | "enviar" | "qr"; id: number } | null>(null);
 
   const currency = account?.moneda || user?.moneda_preferida || "COP";
@@ -193,6 +188,8 @@ export default function HomePage() {
       setSent(await api<Invite[]>("/supervision/invitations/sent", nextToken).catch(() => []));
       setInvites([]);
     }
+    setNotes(await api<Note[]>("/notifications", nextToken).catch(() => []));
+    setCategories(await api<Category[]>("/categories", nextToken).catch(() => []));
     } finally {
       setLoading(false);
     }
@@ -204,28 +201,27 @@ export default function HomePage() {
     }
   }, [token, user]);
 
-  async function onAuth(event: FormEvent) {
-    event.preventDefault();
+  async function enter(email: string, password: string) {
     setError("");
-    if (mode === "register" && !securePassword(password)) {
-      setError("La contraseña necesita 8 caracteres, mayúscula, minúscula y un número.");
-      return;
-    }
     try {
-      const path = mode === "login" ? "/auth/login" : "/auth/register";
-      const payload =
-        mode === "login"
-          ? { email, password }
-          : { email, password, nombres, apellidos, rol, moneda };
-      const session = await api<{ access_token: string; user: User }>(path, null, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      const session = await api<{ access_token: string; user: User }>("/auth/login", null, { method: "POST", body: JSON.stringify({ email, password }) });
       setToken(session.access_token);
       setUser(session.user);
       setView("inicio");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo entrar");
+    }
+  }
+
+  async function join(payload: { nombres: string; apellidos: string; email: string; password: string; rol: Role; moneda: string; ingreso_mensual_estimado?: string }) {
+    setError("");
+    try {
+      const session = await api<{ access_token: string; user: User }>("/auth/register", null, { method: "POST", body: JSON.stringify(payload) });
+      setToken(session.access_token);
+      setUser(session.user);
+      setView("inicio");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo crear la cuenta");
     }
   }
 
@@ -248,7 +244,13 @@ export default function HomePage() {
       setNudge(null);
       const extra = Number(result.redondeo) > 0 ? ` + ${money(result.redondeo || 0, currency)} enviados a ${result.meta_redondeo} por redondeo automático` : "";
       toast("ok", (kind === "GASTO" ? "Compra registrada" : "Ingreso simulado registrado") + extra);
-      if (token && user) await refresh(token, user);
+      if (token && user) {
+        await refresh(token, user);
+        const incoming = await api<Note[]>("/notifications", token).catch(() => []);
+        const fresh = incoming.find((note) => !note.leida && note.severity === "high" && !notes.some((item) => item.id === note.id));
+        if (fresh) toast("danger", `${fresh.titulo}. ${fresh.detalle}`);
+        setNotes(incoming);
+      }
       return result;
     } catch (err) {
       const payload = (err as Error & { payload?: { code?: string; mensaje?: string } }).payload;
@@ -290,43 +292,10 @@ export default function HomePage() {
   const scoreTone = !score ? "text-muted" : score.puntaje >= 80 ? "text-success" : score.puntaje >= 60 ? "text-primary" : "text-danger";
 
   if (!token || !user) {
-    return (
-      <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6">
-        <p className="text-sm text-muted">BeHu</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Entra a tu núcleo familiar</h1>
-        <p className="mt-2 text-sm text-muted">Behavior & Human Finance. Sandbox, sin cargos reales.</p>
-        <form className="mt-8 space-y-3" onSubmit={onAuth}>
-          <div className="grid grid-cols-2 gap-2">
-            <button type="button" className={mode === "login" ? "btn-primary h-10" : "btn-secondary h-10"} onClick={() => setMode("login")}>Entrar</button>
-            <button type="button" className={mode === "register" ? "btn-primary h-10" : "btn-secondary h-10"} onClick={() => setMode("register")}>Crear cuenta</button>
-          </div>
-          {mode === "register" && (
-            <>
-              <input className="h-11 w-full rounded-card border border-line bg-surface px-3" placeholder="Nombres" value={nombres} onChange={(event) => setNombres(event.target.value)} required />
-              <input className="h-11 w-full rounded-card border border-line bg-surface px-3" placeholder="Apellidos" value={apellidos} onChange={(event) => setApellidos(event.target.value)} required />
-              <div className="grid grid-cols-2 gap-2">
-                <select className="h-11 rounded-card border border-line bg-surface px-3" value={rol} onChange={(event) => setRol(event.target.value as Role)}>
-                  <option value="SENIOR">Senior</option>
-                  <option value="JUNIOR">Junior</option>
-                </select>
-                <select className="h-11 rounded-card border border-line bg-surface px-3" value={moneda} onChange={(event) => setMoneda(event.target.value)}>
-                  {["COP", "USD", "EUR", "MXN", "PEN"].map((code) => <option key={code}>{code}</option>)}
-                </select>
-              </div>
-            </>
-          )}
-          <input className="h-11 w-full rounded-card border border-line bg-surface px-3" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
-          <input className="h-11 w-full rounded-card border border-line bg-surface px-3" type="password" value={password} onChange={(event) => setPassword(event.target.value)} required />
-          {error && <p className="text-sm text-danger">{error}</p>}
-          <button className="btn-primary h-11 w-full" type="submit">{mode === "login" ? "Entrar" : "Crear cuenta"}</button>
-        </form>
-        <div className="mt-6 grid grid-cols-2 gap-2">
-          <button className="btn-secondary h-10 text-sm" type="button" onClick={() => { setMode("login"); setEmail("senior@behu.test"); setPassword("BeHuSenior1!"); }}>Sandbox Senior</button>
-          <button className="btn-secondary h-10 text-sm" type="button" onClick={() => { setMode("login"); setEmail("junior@behu.test"); setPassword("BeHuJunior1!"); }}>Sandbox Junior</button>
-        </div>
-      </main>
-    );
+    return <PublicSite error={error} onLogin={enter} onRegister={join} />;
   }
+
+  const unread = notes.filter((note) => !note.leida).length;
 
   const pendingInvites = invites.filter((invite) => invite.estado === "PENDING").length;
   const attention = (id: View) => (id === "familia" && alerts.length > 0 ? alerts.length : id === "inicio" && pendingInvites > 0 ? pendingInvites : 0);
@@ -346,6 +315,10 @@ export default function HomePage() {
               <p className="text-base font-semibold tracking-tight">BeHu</p>
               <p className="text-[10px] font-semibold tracking-[0.16em] text-[#64748B]">{user.rol === "SENIOR" ? "NEOBANK" : "PERSONAL"}</p>
             </div>
+            <button className="relative ml-auto grid h-9 w-9 place-items-center rounded-xl text-[#94A3B8]" type="button" onClick={() => setBellOpen(true)} aria-label="Notificaciones">
+              <Bell size={16} />
+              {unread > 0 && <span className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[#F43F5E] px-1 text-[9px] text-white">{unread}</span>}
+            </button>
           </div>
           <nav className="mt-3 flex-1 space-y-1 overflow-y-auto px-3">
             {nav.map((item) => {
@@ -383,13 +356,44 @@ export default function HomePage() {
         </div>
       </aside>
       <main className="mx-auto w-full max-w-app px-4 pb-28 pt-6 md:px-8">
+        <div className="mb-4 flex justify-end lg:hidden">
+          <button className="relative grid h-10 w-10 place-items-center rounded-xl border border-[#1E293B] bg-[#111726]" type="button" onClick={() => setBellOpen(true)} aria-label="Notificaciones">
+            <Bell size={16} />
+            {unread > 0 && <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[#F43F5E] px-1 text-[9px] text-white">{unread}</span>}
+          </button>
+        </div>
         {error && <p className="mb-4 text-sm text-danger">{error}</p>}
         {loading && view === "inicio" ? <Skeleton /> : null}
         {view === "inicio" && !loading && (
           <section className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h1 className="text-2xl font-semibold">Hola, {user.nombres}</h1>
-              <KeyChip llave={llave} onCopy={() => { navigator.clipboard.writeText(`@${llave}`); toast("ok", "Llave copiada"); }} />
+            <PageHead title={`Hola, ${user.nombres}`} subtitle={`Saldo en ${currency}. Tu llave y tus acciones rápidas viven aquí.`} action="Nuevo movimiento" onAction={() => { setDeskRequest({ action: "gasto", id: Date.now() }); setView("movimientos"); }} />
+            <div className="flex justify-end"><KeyChip llave={llave} onCopy={() => { navigator.clipboard.writeText(`@${llave}`); toast("ok", "Llave copiada"); }} /></div>
+            <article className="rounded-2xl border border-[#1E293B] bg-[#111726] p-4">
+              <div className="grid gap-4 lg:grid-cols-[180px_1fr]">
+                <ScoreGauge score={score?.puntaje ?? 0} level={score?.nivel || "Sin datos"} factors={[]} />
+                <div>
+                  <p className="text-sm text-[#94A3B8]">Salud financiera. El anillo resume el Score y los bloques separan lo que puedes gastar de lo que ya está reservado.</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-[#1E293B] p-3"><p className="text-xs text-[#94A3B8]">Saldo disponible (gasto)</p><p className="mt-1 font-semibold">{money(account?.saldo_disponible || account?.saldo || 0, currency)}</p></div>
+                    <div className="rounded-xl border border-[#1E293B] p-3"><p className="text-xs text-[#94A3B8]">Ahorro reservado en metas</p><p className="mt-1 font-semibold">{money(account?.saldo_congelado || 0, currency)}</p></div>
+                  </div>
+                </div>
+              </div>
+            </article>
+            <article className="rounded-2xl border border-[#1E293B] bg-[#111726] p-4">
+              <div className="flex items-center justify-between"><p className="font-semibold">Tus límites de gasto</p><button className="text-sm text-[#3B82F6]" type="button" onClick={() => setView("aprende")}>Micro-Learning</button></div>
+              <LimitBar label="Consumo semanal" real={week.reduce((sum, day) => sum + day.spent, 0)} goal={Number(account?.limite_gasto_semanal || 0)} />
+              <LimitBar label="Consumo mensual" real={gastosMes} goal={Number(account?.limite_gasto_mensual || 0)} />
+            </article>
+            <button className="w-full rounded-2xl border border-[#1E293B] bg-[#111726] p-4 text-left" type="button" onClick={() => setView("mini")}>
+              <p className="font-semibold">BeHu Mini</p>
+              <p className="mt-1 text-sm text-[#94A3B8]">Pregunta con tu saldo real en {currency}: {money(account?.saldo_disponible || account?.saldo || 0, currency)} disponibles.</p>
+            </button>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <Kpi label="Balance del mes" value={money(ingresosMes - gastosMes, currency)} />
+              <Kpi label="Gastos acumulados" value={money(gastosMes, currency)} />
+              <Kpi label="Ingresos del mes" value={money(ingresosMes, currency)} />
+              <Kpi label="Esta semana" value={money(week.reduce((sum, day) => sum + day.spent, 0), currency)} />
             </div>
             <QuickActions onOpen={(action) => { setDeskRequest({ action, id: Date.now() }); setView("movimientos"); }} />
             {invites.map((invite) => (
@@ -439,6 +443,7 @@ export default function HomePage() {
               toast("ok", "Envío por llave registrado");
               if (user) await refresh(token, user);
             }}
+            categories={categories.map((item) => ({ codigo: item.codigo, nombre: item.nombre }))}
             onReceipt={(id) => api(`/transactions/${id}/receipt`, token)}
             onCopy={(text) => { navigator.clipboard.writeText(text); toast("ok", "Llave copiada"); }}
             request={deskRequest}
@@ -451,6 +456,7 @@ export default function HomePage() {
             account={account}
             juniors={juniors}
             currency={currency}
+            categories={categories}
             onUser={(next) => setUser(next)}
             onDone={async (message) => {
               toast("ok", message);
@@ -486,13 +492,15 @@ export default function HomePage() {
           <Mini
             role={user.rol}
             currency={currency}
+            saldo={money(account?.saldo_disponible || account?.saldo || 0, currency)}
+            score={score?.puntaje ?? 0}
             advice={advice}
             chat={chat}
             onAsk={async (pregunta) => {
               setChat((items) => [...items, { role: "user", text: pregunta }]);
               const result = await api<Advice>("/ai/consult", token, { method: "POST", body: JSON.stringify({ pregunta }) });
               setAdvice(result);
-              setChat((items) => [...items, { role: "mini", text: result.recomendaciones.join(" ") }]);
+              setChat((items) => [...items, { role: "mini", text: result.resumen, points: result.recomendaciones }]);
             }}
           />
         )}
@@ -510,6 +518,27 @@ export default function HomePage() {
           );
         })}
       </nav>
+      {bellOpen && (
+        <div className="fixed inset-0 z-40 bg-black/50" onClick={() => setBellOpen(false)}>
+          <aside className="absolute right-0 top-0 h-full w-full max-w-md overflow-auto border-l border-[#1E293B] bg-[#0F1422] p-5" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">Alertas financieras</h2><button className="text-sm text-[#94A3B8]" type="button" onClick={() => setBellOpen(false)}>Cerrar</button></div>
+            <div className="mt-4 space-y-3">
+              {notes.length === 0 && <p className="text-sm text-[#94A3B8]">No hay alertas abiertas.</p>}
+              {notes.map((note) => (
+                <article key={note.id} className="rounded-2xl border border-[#1E293B] bg-[#111726] p-4 text-sm">
+                  <p className={note.severity === "high" ? "font-semibold text-[#F43F5E]" : note.severity === "medium" ? "font-semibold text-[#F59E0B]" : "font-semibold text-[#3B82F6]"}>{note.titulo}</p>
+                  <p className="mt-1">{note.detalle}</p>
+                  <p className="mt-1 text-[#94A3B8]">{note.sugerencia}</p>
+                  <div className="mt-3 flex gap-2">
+                    <button className="btn-secondary h-8 px-3 text-xs" type="button" onClick={async () => { await api(`/notifications/${note.id}/read`, token, { method: "PATCH" }); setNotes((items) => items.map((item) => item.id === note.id ? { ...item, leida: true } : item)); }}>Marcar leída</button>
+                    <button className="btn-secondary h-8 px-3 text-xs" type="button" onClick={() => { setBellOpen(false); setView(note.tipo === "INVITACION" || user.rol === "SENIOR" ? "familia" : "mini"); }}>{user.rol === "SENIOR" ? "Gestionar límites" : "Consultar a BeHu Mini"}</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </aside>
+        </div>
+      )}
       <Toasts items={toasts} />
       {unlink && (
         <div className="fixed inset-0 z-20 grid place-items-center bg-black/60 px-4">
@@ -678,17 +707,52 @@ function Family({ token, juniors, alerts, sent, onUnlink, onToast, onDone }: { t
   );
 }
 
+function PageHead({ title, subtitle, action, onAction }: { title: string; subtitle: string; action?: string; onAction?: () => void }) {
+  return (
+    <div className="flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        <p className="mt-1 text-sm text-[#94A3B8]">{subtitle}</p>
+      </div>
+      {action && <button className="h-10 rounded-xl bg-white px-4 text-sm font-semibold text-[#090D16]" type="button" onClick={onAction}>+ {action}</button>}
+    </div>
+  );
+}
+
+function LimitBar({ label, real, goal }: { label: string; real: number; goal: number }) {
+  const width = goal > 0 ? Math.min(100, (real / goal) * 100) : 0;
+  return (
+    <div className="mt-3">
+      <div className="mb-1 flex justify-between text-xs text-[#94A3B8]"><span>{label}</span><span>{goal ? `${Math.round(width)}%` : "Sin tope"}</span></div>
+      <div className="h-2 rounded-full bg-[#1A2338]"><div className="h-2 rounded-full bg-[#3B82F6]" style={{ width: `${width}%` }} /></div>
+    </div>
+  );
+}
+
 function Learn({ token, lessons, onDone }: { token: string; lessons: Lesson[]; onDone: (message: string) => Promise<void> }) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [note, setNote] = useState("");
+  const [tab, setTab] = useState("Lecciones");
+  const badges = lessons.filter((lesson) => lesson.completado);
   return (
     <section className="space-y-3">
-      <h1 className="text-2xl font-semibold">Aprende</h1>
+      <PageHead title="Educación financiera" subtitle="Cada lección completada suma puntos a tu Score BeHu." />
+      <Tabs items={["Lecciones", "Insignias"]} value={tab} onChange={setTab} />
+      <article className="rounded-2xl border border-[#1E293B] bg-[#111726] p-4">
+        <p className="font-semibold">Tus insignias financieras ({badges.length})</p>
+        <p className="mt-1 text-sm text-[#94A3B8]">Cada lección completada suma +5 puntos a tu Score BeHu.</p>
+      </article>
       {note && <p className="text-sm text-warning">{note}</p>}
-      {lessons.map((lesson) => (
-        <article key={lesson.id} className="panel p-4">
-          <p className="font-semibold">{lesson.titulo}</p>
-          <p className="mt-1 text-sm text-muted">{lesson.resumen}</p>
+      {tab === "Insignias" && badges.map((lesson) => <p key={lesson.id} className="rounded-full border border-[#1E293B] px-3 py-1 text-sm">Insignia: {lesson.insignia}</p>)}
+      {tab === "Lecciones" && lessons.map((lesson) => (
+        <article key={lesson.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#1E293B] bg-[#111726] p-4">
+          <div>
+            <p className="text-xs text-[#94A3B8]">{lesson.categoria || "Finanzas"} · {lesson.duracion_min || 2} min</p>
+            <p className="mt-1 font-semibold">{lesson.titulo}</p>
+            <p className="mt-1 text-sm text-[#94A3B8]">{lesson.resumen}</p>
+          </div>
+          <p className="rounded-full border border-[#334155] px-3 py-1 text-xs">Insignia: {lesson.insignia}</p>
+          <div className="w-full">
           <p className="mt-3 text-sm">{lesson.pregunta}</p>
           <div className="mt-2 space-y-1">
             {lesson.opciones.map((opcion, index) => (
@@ -706,7 +770,8 @@ function Learn({ token, lessons, onDone }: { token: string; lessons: Lesson[]; o
               setNote(message);
               await onDone(message);
             }
-          }}>{lesson.completado ? "Completada" : "Responder"}</button>
+          }}>{lesson.completado ? "Completada" : "Iniciar lección + Quiz >"}</button>
+          </div>
         </article>
       ))}
     </section>
@@ -719,6 +784,7 @@ function Settings({
   account,
   juniors,
   currency,
+  categories,
   onUser,
   onDone,
 }: {
@@ -727,16 +793,48 @@ function Settings({
   account: Account | null;
   juniors: Junior[];
   currency: string;
+  categories: Category[];
   onUser: (user: User) => void;
   onDone: (message: string) => Promise<void>;
 }) {
+  const [tab, setTab] = useState("Perfil");
+  const [nombre, setNombre] = useState(`${user.nombres} ${user.apellidos}`);
+  const [moneda, setMoneda] = useState(user.moneda_preferida || currency);
+  const [ingreso, setIngreso] = useState(user.ingreso_mensual_estimado || "");
+  const [nueva, setNueva] = useState("");
   return (
     <section className="space-y-4">
-      <h1 className="text-2xl font-semibold">Ajustes</h1>
+      <PageHead title="Ajustes y configuración" subtitle="Perfil, moneda y las categorías con las que registras movimientos." />
+      <Tabs items={["Perfil", "Categorías", "Límites"]} value={tab} onChange={setTab} />
+      {tab === "Perfil" && <form className="space-y-2 rounded-2xl border border-[#1E293B] bg-[#111726] p-4" onSubmit={async (event) => {
+        event.preventDefault();
+        const [nombres, ...resto] = nombre.trim().split(/\s+/);
+        const next = await api<User>("/users/me", token, { method: "PATCH", body: JSON.stringify({ nombres, apellidos: resto.join(" ") || "BeHu", moneda, ingreso_mensual_estimado: ingreso || null }) });
+        onUser(next);
+        await onDone("Perfil actualizado");
+      }}>
+        <p className="font-semibold">Perfil y preferencias</p>
+        <input className="h-11 w-full rounded-xl border border-[#1E293B] bg-[#090D16] px-3" value={nombre} onChange={(event) => setNombre(event.target.value)} />
+        <p className="text-sm text-[#94A3B8]">{user.email}</p>
+        <select className="h-11 w-full rounded-xl border border-[#1E293B] bg-[#090D16] px-3" value={moneda} onChange={(event) => setMoneda(event.target.value)}>{["COP", "USD", "MXN", "EUR", "PEN"].map((code) => <option key={code}>{code}</option>)}</select>
+        <input className="h-11 w-full rounded-xl border border-[#1E293B] bg-[#090D16] px-3" placeholder="Ingreso mensual estimado" value={ingreso || ""} onChange={(event) => setIngreso(event.target.value)} />
+        <button className="h-10 rounded-xl bg-white px-4 text-sm font-semibold text-[#090D16]" type="submit">Guardar cambios</button>
+      </form>}
+      {tab === "Categorías" && (
+        <div className="space-y-3">
+          <form className="flex gap-2" onSubmit={async (event) => { event.preventDefault(); await api("/categories", token, { method: "POST", body: JSON.stringify({ nombre: nueva }) }); setNueva(""); await onDone("Categoría creada"); }}>
+            <input className="h-11 flex-1 rounded-xl border border-[#1E293B] bg-[#111726] px-3" placeholder="Mascotas, Cursos, Gimnasio" value={nueva} onChange={(event) => setNueva(event.target.value)} required />
+            <button className="h-11 rounded-xl bg-white px-4 text-sm font-semibold text-[#090D16]" type="submit">Crear</button>
+          </form>
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
+            {categories.map((item) => <p key={item.codigo} className="rounded-xl border border-[#1E293B] bg-[#111726] px-3 py-2 text-sm">{item.nombre}<span className="ml-2 text-xs text-[#64748B]">{item.origen}</span></p>)}
+          </div>
+        </div>
+      )}
+      {tab === "Límites" && <>
       <article className="panel space-y-1 p-4 text-sm">
         <p className="font-semibold">{user.nombres} {user.apellidos}</p>
         <p className="text-muted">{user.email}</p>
-        <p>Rol {user.rol} · Moneda {currency}</p>
         <p>KYC {user.kyc_status || "PENDING"}</p>
         <label className="btn-secondary mt-3 inline-flex h-10 cursor-pointer items-center px-3">
           Simular documento
@@ -751,14 +849,14 @@ function Settings({
           }} />
         </label>
       </article>
-      {user.rol === "JUNIOR" && (
+      {tab === "Límites" && user.rol === "JUNIOR" && (
         <article className="panel p-4 text-sm">
           <p className="font-semibold">Límites de tu acudiente</p>
           <p className="mt-2 text-muted">Diario {money(account?.limite_gasto_diario || 0, currency)} · Semanal {money(account?.limite_gasto_semanal || 0, currency)} · Mensual {money(account?.limite_gasto_mensual || 0, currency)}</p>
           <p className="mt-2 text-dim">Estos topes tienen candado: solo tu Senior puede cambiarlos.</p>
         </article>
       )}
-      {user.rol === "SENIOR" && juniors.map((junior) => (
+      {tab === "Límites" && user.rol === "SENIOR" && juniors.map((junior) => (
         <form key={junior.cuenta_junior_id} className="panel space-y-2 p-4" onSubmit={async (event) => {
           event.preventDefault();
           const form = new FormData(event.currentTarget);
@@ -781,37 +879,52 @@ function Settings({
           <button className="btn-primary h-10 px-4 text-sm" type="submit">Guardar límites</button>
         </form>
       ))}
+      </>}
     </section>
   );
 }
 
-function Mini({ role, currency, advice, chat, onAsk }: { role: Role; currency: string; advice: Advice | null; chat: { role: "user" | "mini"; text: string }[]; onAsk: (pregunta: string) => Promise<void> }) {
-  const cards = role === "SENIOR"
-    ? [
-        ["Diagnóstico de gastos hormiga", "Revisa gastos hormiga de mis Juniors y dime el ajuste de límite."],
-        ["Simulador CDT / fondo de emergencia", "Calcula mi fondo de emergencia de 3 a 6 meses y si el excedente alcanza para un CDT."],
-        ["Regla 50/30/20", "Proyecta mi regla 50/30/20 con los ingresos reales de este mes."],
-      ]
-    : [
-        ["Diagnóstico de gastos hormiga", "Detecta mis gastos hormiga de comida y ocio y dime cuánto apartar."],
-        ["Proyección de metas", "Con mi saldo líquido y mi saldo congelado, ¿cuánto abono hoy para subir el Score?"],
-        ["Cómo subo el Score", "Dime el abono concreto, en mi moneda, para mejorar el Score BeHu."],
-      ];
+function Tabs({ items, value, onChange }: { items: string[]; value: string; onChange: (value: string) => void }) {
+  return (
+    <div className="flex gap-2 overflow-auto">
+      {items.map((item) => (
+        <button key={item} className={value === item ? "h-9 rounded-full bg-white px-3 text-sm font-semibold text-[#090D16]" : "h-9 rounded-full border border-[#1E293B] px-3 text-sm text-[#94A3B8]"} type="button" onClick={() => onChange(item)}>{item}</button>
+      ))}
+    </div>
+  );
+}
+
+function Mini({ role, currency, saldo, score, advice, chat, onAsk }: { role: Role; currency: string; saldo: string; score: number; advice: Advice | null; chat: { role: "user" | "mini"; text: string; points?: string[] }[]; onAsk: (pregunta: string) => Promise<void> }) {
   const [text, setText] = useState("");
+  const [typing, setTyping] = useState(false);
+  const prompts = role === "SENIOR"
+    ? ["¿Puedo invertir en un CDT?", "¿Cómo van mis Juniors?", "Diagnostica gastos no pertinentes"]
+    : ["¿Cuánto puedo gastar hoy?", "¿Cómo va mi meta?", "Detecta mis gastos hormiga"];
   return (
     <section className="space-y-3">
-      <h1 className="text-2xl font-semibold">BeHu Mini</h1>
-      <div className="grid gap-2 md:grid-cols-3">
-        {cards.map(([title, prompt]) => (
-          <button key={title} className="panel p-4 text-left text-sm hover:bg-surface-hover" type="button" onClick={() => onAsk(prompt)}>
-            <p className="font-semibold">{title}</p>
-            <p className="mt-1 text-muted">Usa tu saldo real en {currency}.</p>
-          </button>
+      <div className="flex items-center gap-3 rounded-2xl border border-[#1E293B] bg-[#111726] p-4">
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#3B82F6] text-lg">🤖</span>
+        <div className="flex-1">
+          <p className="font-semibold">BeHu Mini</p>
+          <p className="text-xs text-[#94A3B8]">{role === "SENIOR" ? "Modo Inversión & Familia" : "Modo Ahorro & Hábitos"}</p>
+        </div>
+        <p className="text-sm font-semibold">{score}/100</p>
+      </div>
+      <div className="flex gap-2 overflow-auto">
+        {prompts.map((prompt) => (
+          <button key={prompt} className="shrink-0 rounded-full border border-[#1E293B] px-3 py-2 text-xs" type="button" onClick={async () => { setTyping(true); await onAsk(prompt); setTyping(false); }}>{prompt}</button>
         ))}
       </div>
-      <div className="panel min-h-48 space-y-3 p-4">
-        {chat.length === 0 && <p className="text-sm text-muted">{advice?.resumen || "Pregunta con tus números reales: saldo, metas y límites."}</p>}
-        {chat.map((item, index) => <p key={index} className={item.role === "user" ? "text-sm" : "text-sm text-muted"}>{item.text}</p>)}
+      <div className="min-h-48 space-y-3 rounded-2xl border border-[#1E293B] bg-[#111726] p-4">
+        {chat.length === 0 && <p className="text-sm text-[#94A3B8]">Hola. Tu saldo disponible es {saldo}. Pregunta en {currency}.</p>}
+        {chat.map((item, index) => (
+          <div key={index} className={item.role === "user" ? "ml-8 rounded-2xl bg-[#1A2338] p-3 text-sm" : "mr-8 rounded-2xl border border-[#1E293B] p-3 text-sm"}>
+            <p>{item.text}</p>
+            {item.points && <ul className="mt-2 list-disc space-y-1 pl-4 text-[#94A3B8]">{item.points.map((point) => <li key={point}>{point}</li>)}</ul>}
+          </div>
+        ))}
+        {typing && <p className="text-sm text-[#3B82F6]">BeHu Mini está escribiendo…</p>}
+        {advice && chat.length === 0 && <p className="text-sm">{advice.resumen}</p>}
       </div>
       <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); if (text.trim()) onAsk(text.trim()); setText(""); }}>
         <input className="h-11 flex-1 rounded-card border border-line bg-surface px-3" value={text} onChange={(event) => setText(event.target.value)} placeholder="Escribe tu pregunta" />

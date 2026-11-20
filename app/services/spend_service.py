@@ -108,7 +108,7 @@ async def simular_compra(
             )
 
     comercio_cta = await obtener_cuenta_sistema(db, MERCHANT_EMAIL)
-    nombre = CATEGORIAS_CATALOGO[payload.categoria]
+    nombre = CATEGORIAS_CATALOGO.get(payload.categoria, payload.categoria.replace("_", " ").title())
     return await transferir(
         db,
         origen_id=cuenta.id,

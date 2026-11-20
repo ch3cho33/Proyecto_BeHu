@@ -2,6 +2,16 @@
 
 Todos los cambios relevantes del backend BeHu se registran aquí.
 
+## [4.0.0] — 2026-11-19 — Landing, Mini contextual y alertas
+
+### Added
+
+- La raíz sin sesión muestra la landing de producto y el acceso en dos paneles: propuesta de valor a la izquierda y login o registro a la derecha, con demos Senior y Junior.
+- BeHu Mini detecta intención (inversión, ahorro, fugas, familia o diagnóstico) y responde con saldo, moneda y cálculos de la cuenta. El chat muestra el modo, el Score y chips de preguntas.
+- `GET /api/v1/notifications` y `PATCH /api/v1/notifications/{id}/read` alimentan la campana. Un gasto no pertinente, un hormiga, un impulso, un límite al 80% o una invitación pendiente aparecen ahí.
+- `PATCH /api/v1/users/me` guarda nombre, moneda e ingreso mensual. `GET/POST /api/v1/categories` expone 18 categorías del sistema y las que crea cada usuario.
+- Inicio, Aprende y Ajustes comparten encabezado, tarjetas `#111726` y pestañas. La academia muestra insignias y duración de cada lección.
+
 ## [3.1.0] — 2026-11-19 — Mini, dock y PWA
 
 ### Added

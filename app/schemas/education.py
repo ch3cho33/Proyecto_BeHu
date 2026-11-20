@@ -14,6 +14,8 @@ class ModulePublic(BaseModel):
     opciones: list[str]
     insignia: str
     orden: int
+    categoria: str = "Finanzas"
+    duracion_min: int = 2
     completado: bool
     insignia_obtenida: str | None = None
 

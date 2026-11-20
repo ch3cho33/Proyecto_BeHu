@@ -12,7 +12,7 @@ from app.core.security import (
 )
 from app.models.account import CuentaJunior, CuentaSenior
 from app.models.user import Usuario
-from app.schemas.user import AuthSessionResponse, UserLoginRequest, UserPublic, UserRegisterRequest
+from app.schemas.user import AuthSessionResponse, UserLoginRequest, UserPublic, UserRegisterRequest, UserUpdateRequest
 from app.services.exceptions import EmailAlreadyRegistered, InvalidCredentials, InvalidRole
 
 
@@ -48,6 +48,7 @@ async def register(db: AsyncSession, payload: UserRegisterRequest) -> AuthSessio
         rol=payload.rol,
         telefono=payload.telefono,
         moneda_preferida=payload.moneda,
+        ingreso_mensual_estimado=payload.ingreso_mensual_estimado,
     )
     db.add(user)
     await db.flush()
@@ -69,3 +70,17 @@ async def login(db: AsyncSession, payload: UserLoginRequest) -> AuthSessionRespo
     if not verify_password(payload.password, user.password_hash):
         raise InvalidCredentials("Correo o contraseña inválidos")
     return _build_session(user)
+
+
+async def actualizar_perfil(db: AsyncSession, usuario: Usuario, payload: UserUpdateRequest) -> UserPublic:
+    from app.services.account_service import get_cuenta_usuario
+
+    usuario.nombres = payload.nombres.strip()
+    usuario.apellidos = payload.apellidos.strip()
+    usuario.moneda_preferida = payload.moneda
+    usuario.ingreso_mensual_estimado = payload.ingreso_mensual_estimado
+    cuenta = await get_cuenta_usuario(db, usuario)
+    cuenta.moneda = payload.moneda
+    await db.commit()
+    await db.refresh(usuario)
+    return UserPublic.model_validate(usuario)

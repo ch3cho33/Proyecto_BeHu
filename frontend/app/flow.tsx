@@ -140,6 +140,7 @@ export function MovementDesk({
   onReceipt,
   onCopy,
   request,
+  categories,
 }: {
   moves: FlowMove[];
   currency: string;
@@ -152,6 +153,7 @@ export function MovementDesk({
   onReceipt: (id: string) => Promise<{ asientos: { naturaleza: string; cuenta: string; monto: string }[]; transaccion: FlowMove }>;
   onCopy: (text: string) => void;
   request?: { action: "gasto" | "ingreso" | "enviar" | "qr"; id: number } | null;
+  categories?: { codigo: string; nombre: string }[];
 }) {
   const [sheet, setSheet] = useState<"gasto" | "ingreso" | "enviar" | "qr" | null>(null);
   const [draft, setDraft] = useState<Draft>({ monto: "", categoria: "COMIDA", metodo: "TARJETA_DEBITO", bucket: "DESEOS", notas: "", redondear: false });
@@ -161,6 +163,7 @@ export function MovementDesk({
   const [qr, setQr] = useState("");
   const [sendAmount, setSendAmount] = useState("20000");
   const [destKey, setDestKey] = useState("");
+  const chips = categories?.length ? categories.map((item) => ({ id: item.codigo, label: item.nombre, icon: CATEGORIES.find((base) => base.id === item.codigo)?.icon || CreditCard })) : CATEGORIES;
 
   useEffect(() => {
     if (request) setSheet(request.action);
@@ -203,7 +206,11 @@ export function MovementDesk({
   return (
     <section className="space-y-5">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Movimientos</h1>
+        <div>
+          <h1 className="text-2xl font-semibold">Movimientos</h1>
+          <p className="text-sm text-[#94A3B8]">Extracto agrupado por fecha, con comprobante y CSV.</p>
+        </div>
+        <button className="h-10 rounded-xl bg-white px-4 text-sm font-semibold text-[#090D16]" type="button" onClick={() => setSheet("gasto")}>+ Nuevo movimiento</button>
         <button className="btn-secondary inline-flex h-9 items-center gap-2 px-3 text-sm" type="button" onClick={exportCsv}>
           <Download size={14} /> Exportar extracto (CSV)
         </button>
@@ -245,7 +252,7 @@ export function MovementDesk({
           <AmountField currency={currency} value={draft.monto} onChange={(monto) => setDraft({ ...draft, monto })} />
           <p className="mt-4 text-xs text-dim">Categoría</p>
           <div className="mt-2 grid grid-cols-2 gap-2">
-            {CATEGORIES.map((item) => (
+            {chips.map((item) => (
               <button key={item.id} type="button" className={`flex items-center gap-2 rounded-card border px-3 py-2 text-sm ${draft.categoria === item.id ? "border-primary bg-surface-strong" : "border-line"}`} onClick={() => setDraft({ ...draft, categoria: item.id })}>
                 <item.icon size={16} /> {item.label}
               </button>

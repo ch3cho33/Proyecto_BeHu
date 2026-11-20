@@ -2,7 +2,7 @@
 
 Plataforma Fintech de cuentas transaccionales, control parental e IA predictiva (BeHu Mini) para el mercado colombiano — Jäger Group (Pontificia Universidad Javeriana).
 
-**v3.1.0** es el neobanco familiar sandbox: el mismo ledger de partida doble, ahora con invitación por consentimiento, regla 50/30/20, bloqueo de tarjeta Junior y BeHu Mini por reglas. No hay ACH ni redes de tarjetas reales. API y PWA salen juntas en Vercel Services; Postgres va en Neon y los hábitos en MongoDB Atlas.
+**v4.0.0** es el neobanco familiar sandbox: el mismo ledger de partida doble, ahora con invitación por consentimiento, regla 50/30/20, bloqueo de tarjeta Junior y BeHu Mini por reglas. No hay ACH ni redes de tarjetas reales. API y PWA salen juntas en Vercel Services; Postgres va en Neon y los hábitos en MongoDB Atlas.
 
 ## Arquitectura
 
@@ -121,6 +121,10 @@ source .venv/bin/activate
 pip install -r requirements.txt
 pytest -q
 ```
+
+## Release v4.0.0
+
+Sin sesión, `/` es la landing y el registro vive en un split 50/50. BeHu Mini responde según la pregunta con el saldo y la moneda reales: capacidad diaria, CDT a 3, 6 y 12 meses, fugas o un diagnóstico ejecutivo. La campana lee `GET /api/v1/notifications`. El perfil se guarda con `PATCH /api/v1/users/me` y las categorías propias con `POST /api/v1/categories`.
 
 ## Release v3.1.0
 

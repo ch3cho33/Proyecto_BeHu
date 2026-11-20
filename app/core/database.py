@@ -66,6 +66,7 @@ def _add_v2_columns(connection) -> None:
         "usuario": [
             ("moneda_preferida", "VARCHAR(3) NOT NULL DEFAULT 'COP'"),
             ("llave_behu", "VARCHAR(80)"),
+            ("ingreso_mensual_estimado", "NUMERIC(14,2)"),
         ],
         "cuenta": [("tarjeta_bloqueada", flag)],
         "transaccion": [

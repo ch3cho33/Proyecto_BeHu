@@ -65,6 +65,16 @@ CAPSULAS = [
         "insignia": "Lupa hormiga",
         "orden": 3,
     },
+    {
+        "slug": "ahorro-visual",
+        "titulo": "Metas de ahorro con seguimiento visual",
+        "resumen": "Una meta visible congela el dinero antes de que se vaya en la siguiente compra. El avance se lee en porcentaje, no en intenciones.",
+        "pregunta": "¿Qué hace una meta activa en BeHu?",
+        "opciones": ["Aumenta el límite diario", "Apare el ahorro fuera del gasto", "Convierte el saldo a dólares", "Borra los movimientos"],
+        "respuesta_correcta": "1",
+        "insignia": "Ahorrador Pro",
+        "orden": 4,
+    },
 ]
 
 
@@ -101,7 +111,16 @@ def _normalizar(respuesta: str, opciones: list[str], correcta: str) -> bool:
         return False
 
 
+PRESENTACION = {
+    "cdt-interes-compuesto": ("Inversión", 3, "Inversionista Novato"),
+    "regla-50-30-20": ("Presupuesto", 2, "Maestro del Presupuesto"),
+    "gasto-hormiga": ("Hábitos", 2, "Escudo Financiero"),
+    "ahorro-visual": ("Metas", 3, "Ahorrador Pro"),
+}
+
+
 def _publico(modulo: ModuloEducativo, progreso: ProgresoEducativo | None) -> ModulePublic:
+    categoria, minutos, insignia = PRESENTACION.get(modulo.slug, ("Finanzas", 2, modulo.insignia))
     return ModulePublic(
         id=modulo.id,
         slug=modulo.slug,
@@ -109,8 +128,10 @@ def _publico(modulo: ModuloEducativo, progreso: ProgresoEducativo | None) -> Mod
         resumen=modulo.resumen,
         pregunta=modulo.pregunta,
         opciones=json.loads(modulo.opciones_json),
-        insignia=modulo.insignia,
+        insignia=insignia,
         orden=modulo.orden,
+        categoria=categoria,
+        duracion_min=minutos,
         completado=progreso is not None and progreso.completado,
         insignia_obtenida=progreso.insignia if progreso else None,
     )

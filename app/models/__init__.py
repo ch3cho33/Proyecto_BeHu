@@ -10,7 +10,8 @@ from app.models.account import (
     CuentaSenior,
 )
 from app.models.base import Base
-from app.models.category import CategoriaGasto
+from app.models.category import CategoriaGasto, CategoriaPersonal
+from app.models.notification import Notificacion
 from app.models.education import ModuloEducativo, ProgresoEducativo
 from app.models.invitation import FamilyInvitation
 from app.models.goal import MetaAhorro
@@ -30,6 +31,8 @@ __all__ = [
     "CuentaSandboxMerchant",
     "CuentaSandboxMeta",
     "CategoriaGasto",
+    "CategoriaPersonal",
+    "Notificacion",
     "ModuloEducativo",
     "ProgresoEducativo",
     "FamilyInvitation",

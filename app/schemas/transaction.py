@@ -22,10 +22,7 @@ class MovementRequest(BaseModel):
 
     tipo: str = Field(pattern="^(GASTO|INGRESO)$")
     monto: Decimal = Field(gt=0)
-    categoria: str = Field(
-        default="COMIDA",
-        pattern="^(COMIDA|ENTRETENIMIENTO|TRANSPORTE|EDUCACION|ROPA|OCIO)$",
-    )
+    categoria: str = Field(default="COMIDA", pattern="^[A-Z0-9_]{2,32}$")
     metodo_pago: str = Field(
         default="EFECTIVO",
         pattern="^(EFECTIVO|TARJETA_DEBITO|TARJETA_CREDITO|TRANSFERENCIA)$",
