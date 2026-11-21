@@ -30,6 +30,14 @@ def _categoria(codigo: str) -> str:
     return codigo
 
 
+def _instante(valor: datetime | None) -> datetime:
+    if valor is None:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    if valor.tzinfo is None:
+        return valor.replace(tzinfo=timezone.utc)
+    return valor.astimezone(timezone.utc)
+
+
 def ids_hormiga(movimientos: list[Transaccion]) -> set[UUID]:
     """Tres o más compras pequeñas de comida u ocio dentro de 48 horas."""
     candidatas = [
@@ -38,15 +46,15 @@ def ids_hormiga(movimientos: list[Transaccion]) -> set[UUID]:
         if tx.tipo == TipoTransaccion.COMPRA.value
         and tx.estado == EstadoTransaccion.COMPLETADA.value
         and (tx.categoria or "") in HORMIGA_CATEGORIAS
-        and Decimal(tx.monto) <= HORMIGA_TOPE
+        and Decimal(str(tx.monto or 0)) <= HORMIGA_TOPE
         and tx.created_at is not None
     ]
     marcadas: set[UUID] = set()
-    ordenadas = sorted(candidatas, key=lambda tx: tx.created_at)
+    ordenadas = sorted(candidatas, key=lambda tx: _instante(tx.created_at))
     for indice, actual in enumerate(ordenadas):
         grupo = [actual]
         for vecina in ordenadas[indice + 1 :]:
-            if vecina.created_at - actual.created_at <= VENTANA_HORMIGA:
+            if _instante(vecina.created_at) - _instante(actual.created_at) <= VENTANA_HORMIGA:
                 grupo.append(vecina)
             else:
                 break

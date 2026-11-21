@@ -1,5 +1,6 @@
 """HU-05: consulta e historial de BeHu Mini."""
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -12,6 +13,7 @@ from app.schemas.ai import AiConsultRequest, AiConsultResponse, AiHistoryItem, P
 from app.services import behu_mini_ai
 
 router = APIRouter(prefix="/ai", tags=["ai"])
+logger = logging.getLogger("behu.mini")
 
 
 @router.post("/consult", response_model=AiConsultResponse)
@@ -21,7 +23,11 @@ async def consult(
     payload: AiConsultRequest | None = None,
 ) -> AiConsultResponse:
     pregunta = payload.texto() if payload else None
-    return await behu_mini_ai.consultar(db, user, pregunta)
+    try:
+        return await behu_mini_ai.consultar(db, user, pregunta)
+    except Exception:
+        logger.exception("POST /ai/consult no pudo completar el cálculo")
+        return await behu_mini_ai.respuesta_de_respaldo(db, user)
 
 
 @router.get("/parental-alerts", response_model=list[ParentalAlert])

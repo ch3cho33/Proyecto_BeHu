@@ -1,8 +1,10 @@
 """Motor contextual BeHu Mini (sandbox, sin LLM externo)."""
 
+import logging
 import re
 import unicodedata
 from collections import Counter
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from sqlalchemy import select
@@ -15,6 +17,8 @@ from app.schemas.ai import AiConsultResponse, AiHistoryItem
 from app.services.account_service import get_cuenta_usuario
 from app.services.ai_store import guardar_habito, guardar_recomendacion, historial
 from app.services.ledger_service import saldo_desde_ledger
+
+logger = logging.getLogger("behu.mini")
 
 TERMINOS_NO_PERTINENTES = (
     "recarga juego",
@@ -30,7 +34,22 @@ TERMINOS_NO_PERTINENTES = (
     "bet",
     "bar",
 )
-TASA_CDT_MENSUAL = Decimal("0.01")
+TASA_CDT_MENSUAL = 0.01
+
+
+def _f(valor) -> float:
+    try:
+        return float(valor or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _instante(valor: datetime | None) -> datetime:
+    if valor is None:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    if valor.tzinfo is None:
+        return valor.replace(tzinfo=timezone.utc)
+    return valor.astimezone(timezone.utc)
 
 
 def _fold(texto: str) -> str:
@@ -52,8 +71,10 @@ def termino_no_pertinente(*partes: str | None) -> str | None:
 
 
 def proyectar_recuperable(principal: Decimal) -> tuple[Decimal, Decimal]:
+    base = _f(principal)
+
     def futuro(meses: int) -> Decimal:
-        return (principal * ((Decimal("1") + TASA_CDT_MENSUAL) ** meses)).quantize(Decimal("1"))
+        return Decimal(str(round(base * ((1 + TASA_CDT_MENSUAL) ** meses))))
 
     return futuro(3), futuro(6)
 
@@ -73,7 +94,7 @@ def _principal_recuperable(compras: list[Transaccion]) -> tuple[Decimal, str]:
         if tx.id in vistos:
             continue
         vistos.add(tx.id)
-        total += Decimal(tx.monto)
+        total += Decimal(str(_f(tx.monto)))
         hay_vicio = hay_vicio or bool(marca)
         hay_hormiga = hay_hormiga or tx.id in hormiga
     if hay_vicio and hay_hormiga:
@@ -114,13 +135,15 @@ def _consejo_junior(saldo: Decimal, categorias: Counter, metas: list[MetaAhorro]
     for meta in metas:
         if meta.estado != EstadoMeta.ACTIVA.value:
             continue
-        avance = (Decimal(meta.monto_actual) / Decimal(meta.monto_objetivo) * 100) if meta.monto_objetivo else 0
+        objetivo = _f(meta.monto_objetivo)
+        avance = (_f(meta.monto_actual) / objetivo * 100) if objetivo else 0.0
+        limite = meta.fecha_limite.isoformat() if meta.fecha_limite else "sin fecha"
         consejos.append(
             f"Meta «{meta.nombre}»: llevas {avance:.0f}%. "
             f"Congelar un abono pequeño hoy deja ese dinero fuera de las compras impulsivas. "
-            f"Fecha límite {meta.fecha_limite.isoformat()}."
+            f"Fecha límite {limite}."
         )
-    if saldo < Decimal("20000"):
+    if _f(saldo) < 20000:
         consejos.append("Tu saldo disponible es bajo. Pide a tu acudiente un ajuste de presupuesto antes de una compra grande.")
     if not consejos:
         consejos.append("Vas bien: mantén las compras por debajo del 40% de tu saldo.")
@@ -131,12 +154,12 @@ def _consejo_senior(saldo: Decimal, juniors: int) -> list[str]:
     consejos = [
         "Separa el gasto familiar del excedente. Lo que no se va a presupuestos Junior puede trabajar en el mes.",
     ]
-    if saldo >= Decimal("500000"):
+    if _f(saldo) >= 500000:
         consejos.append(
             "Con este excedente en COP, un CDT a 90 o 180 días en un banco vigilado por la Superfinanciera "
             "es una opción de bajo movimiento para el colchón familiar."
         )
-    if saldo >= Decimal("2000000"):
+    if _f(saldo) >= 2000000:
         consejos.append(
             "El excedente ya justifica diversificar: un fondo de inversión colectiva conservador "
             "(renta fija de corto plazo) más el CDT, sin concentrar todo en un solo emisor."
@@ -152,6 +175,42 @@ def _consejo_senior(saldo: Decimal, juniors: int) -> list[str]:
             "educación y transporte antes de mover excedente a inversión."
         )
     return consejos[:4]
+
+
+async def respuesta_de_respaldo(db: AsyncSession, usuario: Usuario) -> AiConsultResponse:
+    moneda = usuario.moneda_preferida or "COP"
+    limite = 0.0
+    puntaje = "sin dato"
+    try:
+        cuenta = await get_cuenta_usuario(db, usuario)
+        limite = _f(cuenta.limite_gasto_diario)
+    except Exception:
+        logger.warning("BeHu Mini no leyó el límite diario", exc_info=True)
+    try:
+        from app.services.scoring_service import calcular_score
+
+        puntaje = str((await calcular_score(db, usuario)).puntaje)
+    except Exception:
+        logger.warning("BeHu Mini no leyó el Score", exc_info=True)
+    texto = (
+        f"Hola {usuario.nombres}. Tu moneda es {moneda} y tu Score es {puntaje}/100. "
+        f"Límite diario {limite:.0f} {moneda}. "
+        "Gasta solo lo que quede después de apartar la meta de esta semana."
+    )
+    ahora = datetime.now(timezone.utc).isoformat()
+    return AiConsultResponse(
+        id="respaldo",
+        rol=usuario.rol,
+        enfoque="respaldo",
+        resumen=texto,
+        recomendaciones=[texto],
+        fuente="local",
+        created_at=ahora,
+        reply=texto,
+        response=texto,
+        insights=[texto],
+        suggested_actions=["Revisa tu saldo en Inicio y aparta un abono a la meta."],
+    )
 
 
 async def consultar(db: AsyncSession, usuario: Usuario, pregunta: str | None) -> AiConsultResponse:
@@ -195,7 +254,8 @@ async def consultar(db: AsyncSession, usuario: Usuario, pregunta: str | None) ->
     from app.services.neobank_service import resumen_503020
 
     cuadro = await resumen_503020(db, usuario)
-    congelado = Decimal(cuadro["saldo_congelado"])
+    congelado = Decimal(str(_f(cuadro.get("saldo_congelado"))))
+    saldo = Decimal(str(_f(saldo)))
     recomendaciones.append(
         f"Saldo líquido {saldo:.0f} {cuenta.moneda} y saldo congelado en metas {congelado:.0f}. "
         f"Regla 50/30/20 sobre ingresos de {cuadro['ingresos']}: "
@@ -204,7 +264,7 @@ async def consultar(db: AsyncSession, usuario: Usuario, pregunta: str | None) ->
         f"ahorro {cuadro['ahorro']['real']} de {cuadro['ahorro']['objetivo']}."
     )
     if usuario.rol == "JUNIOR":
-        abono = max(Decimal("5000"), (saldo * Decimal("0.10")).quantize(Decimal("1")))
+        abono = max(5000.0, round(_f(saldo) * 0.10))
         recomendaciones.append(
             f"Reto de ahorro: abona {abono:.0f} {cuenta.moneda} a tu meta activa. "
             "Si ves suscripciones o gastos hormiga de comida y ocio, congela ese monto antes de la próxima compra."
@@ -234,7 +294,7 @@ async def consultar(db: AsyncSession, usuario: Usuario, pregunta: str | None) ->
     recomendaciones.insert(0, f"Hola. Tu saldo disponible es {saldo:.2f} {cuenta.moneda}.")
 
     contexto = {
-        "saldo": f"{saldo:.2f}",
+        "saldo": f"{_f(saldo):.2f}",
         "moneda": cuenta.moneda,
         "compras_recientes": sum(categorias.values()),
         "categorias": dict(categorias),
@@ -242,26 +302,31 @@ async def consultar(db: AsyncSession, usuario: Usuario, pregunta: str | None) ->
         "pregunta": pregunta,
         "juniors_vinculados": juniors_vinculados,
     }
-    await guardar_habito(
-        {
-            "usuario_id": str(usuario.id),
-            "cuenta_id": str(cuenta.id),
-            "evento": "consulta_behu_mini",
-            "payload": contexto,
-        }
-    )
-    documento, fuente = await guardar_recomendacion(
-        {
-            "usuario_id": str(usuario.id),
-            "cuenta_id": str(cuenta.id),
-            "modelo": "behu-mini-rules",
-            "rol": usuario.rol,
-            "enfoque": enfoque,
-            "recomendaciones": recomendaciones,
-            "contexto": contexto,
-            "aceptada": None,
-        }
-    )
+    documento = {"_id": "local", "created_at": datetime.now(timezone.utc).isoformat()}
+    fuente = "local"
+    try:
+        await guardar_habito(
+            {
+                "usuario_id": str(usuario.id),
+                "cuenta_id": str(cuenta.id),
+                "evento": "consulta_behu_mini",
+                "payload": contexto,
+            }
+        )
+        documento, fuente = await guardar_recomendacion(
+            {
+                "usuario_id": str(usuario.id),
+                "cuenta_id": str(cuenta.id),
+                "modelo": "behu-mini-rules",
+                "rol": usuario.rol,
+                "enfoque": enfoque,
+                "recomendaciones": recomendaciones,
+                "contexto": contexto,
+                "aceptada": None,
+            }
+        )
+    except Exception:
+        logger.warning("BeHu Mini no pudo guardar la consulta", exc_info=True)
     reply = "\n".join(f"• {linea}" for linea in recomendaciones)
     return AiConsultResponse(
         id=documento["_id"],
@@ -270,7 +335,7 @@ async def consultar(db: AsyncSession, usuario: Usuario, pregunta: str | None) ->
         resumen=recomendaciones[0],
         recomendaciones=recomendaciones,
         fuente=fuente,
-        created_at=documento["created_at"],
+        created_at=str(documento.get("created_at") or datetime.now(timezone.utc).isoformat()),
         reply=reply,
         response=reply,
         insights=recomendaciones[:4],
@@ -305,51 +370,48 @@ async def _lineas_intencion(
     compras: list[Transaccion],
     cuadro: dict,
 ) -> list[str]:
-    from datetime import datetime, timezone
-
     hoy = datetime.now(timezone.utc).date()
     if hoy.month == 12:
         fin_mes = hoy.replace(day=31)
     else:
-        fin_mes = hoy.replace(month=hoy.month + 1, day=1)
-        from datetime import timedelta
-
-        fin_mes = fin_mes - timedelta(days=1)
+        fin_mes = hoy.replace(month=hoy.month + 1, day=1) - timedelta(days=1)
     dias = max(1, (fin_mes - hoy).days + 1)
-    gastos = sum((Decimal(tx.monto) for tx in compras if tx.tipo == TipoTransaccion.COMPRA.value), Decimal("0"))
-    ingresos = Decimal(cuadro["ingresos"] or 0)
-    emergencia = (gastos * Decimal("3")).quantize(Decimal("1"))
-    invertible = max(Decimal("0"), (saldo - emergencia).quantize(Decimal("1")))
+    gastos = sum(_f(tx.monto) for tx in compras if tx.tipo == TipoTransaccion.COMPRA.value)
+    ingresos = _f(cuadro.get("ingresos"))
+    saldo_num = _f(saldo)
+    congelado_num = _f(congelado)
+    emergencia = round(gastos * 3)
+    invertible = max(0.0, round(saldo_num - emergencia))
     lineas: list[str] = []
     for intencion in _intenciones(pregunta):
         if intencion == "inversion":
-            tres, seis = proyectar_recuperable(invertible)
-            doce = (invertible * ((Decimal("1") + TASA_CDT_MENSUAL) ** 12)).quantize(Decimal("1"))
+            tres, seis = proyectar_recuperable(Decimal(str(invertible)))
+            doce = round(invertible * ((1 + TASA_CDT_MENSUAL) ** 12))
             lineas.append(
                 f"Puedes invertir hoy {invertible:.0f} {moneda} sin tocar el fondo de emergencia "
                 f"de 3 meses de gastos ({emergencia:.0f} {moneda}). "
                 f"A un CDT del 1% mensual ese capital llega a {tres:.0f} en 3 meses, {seis:.0f} en 6 y {doce:.0f} en 12."
             )
         elif intencion == "ahorro":
-            diaria = (saldo / Decimal(dias)).quantize(Decimal("1"))
+            diaria = round(saldo_num / dias) if dias else 0.0
             lineas.append(
                 f"Tu capacidad diaria segura es {diaria:.0f} {moneda} durante los {dias} días que faltan del mes."
             )
             for meta in metas:
                 if meta.estado != EstadoMeta.ACTIVA.value:
                     continue
-                falta = max(Decimal("0"), Decimal(meta.monto_objetivo) - Decimal(meta.monto_actual))
+                falta = max(0.0, _f(meta.monto_objetivo) - _f(meta.monto_actual))
                 lineas.append(f"A la meta «{meta.nombre}» le faltan {falta:.0f} {moneda}.")
         elif intencion == "diagnostico":
             fugas = []
             for tx in compras:
                 termino = termino_no_pertinente(tx.notas, tx.comercio, tx.descripcion, tx.categoria)
                 if termino:
-                    fugas.append(f"{termino} {Decimal(tx.monto):.0f} {moneda}")
+                    fugas.append(f"{termino} {_f(tx.monto):.0f} {moneda}")
             from app.services.neobank_service import ids_hormiga
 
             if ids_hormiga(compras):
-                hormiga = sum(Decimal(tx.monto) for tx in compras if tx.id in ids_hormiga(compras))
+                hormiga = sum(_f(tx.monto) for tx in compras if tx.id in ids_hormiga(compras))
                 fugas.append(f"hormiga {hormiga:.0f} {moneda}")
             detalle = ", ".join(fugas) if fugas else "no hay fugas con nombre en los movimientos recientes"
             lineas.append(
@@ -363,9 +425,9 @@ async def _lineas_intencion(
                 for alerta in alertas:
                     lineas.append(f"{alerta.junior_nombre}: {alerta.tipo}. {alerta.sugerencia}")
         else:
-            ratio = (gastos / ingresos).quantize(Decimal("0.01")) if ingresos else Decimal("0")
+            ratio = round(gastos / ingresos, 2) if ingresos else 0.0
             lineas.append(
-                f"Diagnóstico ejecutivo: liquidez {saldo:.0f} {moneda}, ahorro reservado {congelado:.0f} {moneda}, "
+                f"Diagnóstico ejecutivo: liquidez {saldo_num:.0f} {moneda}, ahorro reservado {congelado_num:.0f} {moneda}, "
                 f"ratio gasto/ingreso {ratio}. Acciones: 1) aparta un abono a la meta activa. "
                 f"2) revisa el bucket 50/30/20 que más se pasó este mes."
             )
@@ -438,7 +500,7 @@ async def alertas_parentales(db: AsyncSession, usuario: Usuario) -> list:
             if (termino := termino_no_pertinente(tx.notas, tx.comercio, tx.descripcion, tx.categoria))
         ]
         if marcados:
-            total = sum((Decimal(tx.monto) for _, tx in marcados), Decimal("0"))
+            total = sum((_f(tx.monto) for _, tx in marcados), 0.0)
             conceptos = ", ".join(dict.fromkeys(termino for termino, _ in marcados))
             alertas.append(
                 ParentalAlert(

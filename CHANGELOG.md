@@ -2,6 +2,12 @@
 
 Todos los cambios relevantes del backend BeHu se registran aquí.
 
+## [5.0.1] — 2026-11-21 — Consulta Mini sin 500
+
+### Fixed
+
+- `POST /api/v1/ai/consult` convierte montos vacíos a número, compara fechas con zona y no depende de MongoDB. Si un cálculo secundario falla, el chat recibe `200` con `reply`.
+
 ## [5.0.0] — 2026-11-21 — Cierre de producto
 
 ### Added

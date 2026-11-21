@@ -6,7 +6,7 @@ import httpx
 import pytest
 
 from app.core.crypto import cifrar, descifrar
-from scripts.seed_sandbox import seed
+from scripts.seed_sandbox import JUNIOR_EMAIL, JUNIOR_PASSWORD, SENIOR_EMAIL, SENIOR_PASSWORD, seed
 
 
 @pytest.fixture
@@ -15,6 +15,21 @@ async def client():
     transport = httpx.ASGITransport(app=__import__("app.main", fromlist=["app"]).app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as http:
         yield http
+
+
+@pytest.mark.asyncio
+async def test_consult_survives_decimal_and_empty_amounts(client: httpx.AsyncClient):
+    for email, password in ((SENIOR_EMAIL, SENIOR_PASSWORD), (JUNIOR_EMAIL, JUNIOR_PASSWORD)):
+        login = await client.post("/api/v1/auth/login", json={"email": email, "password": password})
+        assert login.status_code == 200, login.text
+        headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+        mini = await client.post(
+            "/api/v1/ai/consult",
+            headers=headers,
+            json={"message": "¿Cuánto puedo gastar hoy?"},
+        )
+        assert mini.status_code == 200, mini.text
+        assert mini.json()["reply"]
 
 
 @pytest.mark.asyncio
