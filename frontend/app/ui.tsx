@@ -12,11 +12,24 @@ const CATEGORY_LABEL: Record<string, string> = {
   TRANSPORTE: "Transporte",
   EDUCACION: "Educación",
   ROPA: "Ropa",
+  SALUD: "Salud",
+  VIVIENDA: "Vivienda",
+  SERVICIOS: "Servicios",
+  SUPERMERCADO: "Supermercado",
+  SUSCRIPCIONES: "Suscripciones",
+  VIAJES: "Viajes",
+  DEPORTES: "Deportes",
+  REGALOS: "Regalos",
+  CUIDADO_PERSONAL: "Cuidado personal",
+  TECNOLOGIA: "Tecnología",
+  IMPUESTOS: "Impuestos",
+  FAMILIA: "Familia",
+  TRABAJO: "Trabajo",
   OTRO: "Otros",
 };
 
 export function labelCategory(code: string) {
-  return CATEGORY_LABEL[code] || "Otros";
+  return CATEGORY_LABEL[code] || code.replaceAll("_", " ").toLowerCase().replace(/(^|\s)\S/g, (letra) => letra.toUpperCase());
 }
 
 function digitsFromId(id: string) {

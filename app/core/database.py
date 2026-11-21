@@ -86,6 +86,18 @@ def _add_v2_columns(connection) -> None:
             if name in present:
                 continue
             connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
+    if dialect != "postgresql" or not inspector.has_table("transaccion"):
+        return
+    for columna, ancho in (("categoria", 80), ("metodo_pago", 40)):
+        try:
+            connection.execute(
+                text(
+                    f"ALTER TABLE transaccion ALTER COLUMN {columna} TYPE VARCHAR({ancho}) "
+                    f"USING {columna}::text"
+                )
+            )
+        except Exception:
+            continue
 
 
 async def create_schema() -> None:

@@ -44,12 +44,12 @@ class CategoriaPersonal(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (UniqueConstraint("usuario_id", "codigo", name="uq_categoria_usuario_codigo"),)
 
     usuario_id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), ForeignKey("usuario.id", ondelete="CASCADE"), nullable=False, index=True)
-    codigo: Mapped[str] = mapped_column(String(32), nullable=False)
+    codigo: Mapped[str] = mapped_column(String(80), nullable=False)
     nombre: Mapped[str] = mapped_column(String(80), nullable=False)
 
 
 class CategoriaGasto(Base):
     __tablename__ = "categoria_gasto"
 
-    codigo: Mapped[str] = mapped_column(String(32), primary_key=True)
+    codigo: Mapped[str] = mapped_column(String(80), primary_key=True)
     nombre: Mapped[str] = mapped_column(String(80), nullable=False)

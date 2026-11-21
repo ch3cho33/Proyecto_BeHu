@@ -33,6 +33,39 @@ async def test_consult_survives_decimal_and_empty_amounts(client: httpx.AsyncCli
 
 
 @pytest.mark.asyncio
+async def test_new_and_custom_categories_register(client: httpx.AsyncClient):
+    login = await client.post("/api/v1/auth/login", json={"email": SENIOR_EMAIL, "password": SENIOR_PASSWORD})
+    assert login.status_code == 200, login.text
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    propia = await client.post("/api/v1/categories", headers=headers, json={"nombre": "Mascotas"})
+    assert propia.status_code == 201, propia.text
+    for nombre, bucket in (
+        ("Salud", "NECESIDADES"),
+        ("Suscripciones", "DESEOS"),
+        ("Tecnología", "DESEOS"),
+        ("Mascotas", "DESEOS"),
+    ):
+        gasto = await client.post(
+            "/api/v1/transactions",
+            headers=headers,
+            json={
+                "tipo": "GASTO",
+                "monto": "8000",
+                "categoria": nombre,
+                "metodo_pago": "TARJETA_BEHU",
+                "notas": nombre,
+                "bucket": "DESEOS",
+            },
+        )
+        assert gasto.status_code == 201, gasto.text
+        assert gasto.json()["bucket"] == bucket
+    regla = await client.get("/api/v1/budgets/50-30-20", headers=headers)
+    assert regla.status_code == 200, regla.text
+    assert Decimal(regla.json()["necesidades"]["real"]) >= Decimal("8000")
+    assert Decimal(regla.json()["deseos"]["real"]) >= Decimal("24000")
+
+
+@pytest.mark.asyncio
 async def test_mini_reply_pattern_and_backup(client: httpx.AsyncClient):
     token = cifrar(b"documento-kyc")
     assert descifrar(token) == b"documento-kyc"

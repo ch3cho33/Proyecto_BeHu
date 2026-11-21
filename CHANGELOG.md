@@ -2,6 +2,12 @@
 
 Todos los cambios relevantes del backend BeHu se registran aquí.
 
+## [5.0.2] — 2026-11-21 — Categorías abiertas
+
+### Fixed
+
+- `POST /api/v1/transactions` acepta las 18 categorías y las personalizadas (`Salud`, `Tecnología`, `Mascotas`). En Neon, `categoria` y `metodo_pago` pasan a texto si todavía eran un enum. El bucket 50/30/20 sale de la categoría.
+
 ## [5.0.1] — 2026-11-21 — Consulta Mini sin 500
 
 ### Fixed

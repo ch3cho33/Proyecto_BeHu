@@ -1,18 +1,34 @@
 """Schemas de movimientos para el cliente móvil."""
 
+import re
+import unicodedata
 from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+def codigo_flexible(value: str, *, tope: int) -> str:
+    base = unicodedata.normalize("NFKD", value.strip())
+    plano = "".join(caracter for caracter in base if not unicodedata.combining(caracter))
+    codigo = re.sub(r"[^A-Za-z0-9]+", "_", plano).strip("_").upper()
+    if len(codigo) < 2:
+        raise ValueError("Valor demasiado corto")
+    return codigo[:tope]
 
 
 class SpendRequest(BaseModel):
     """Compra simulada en un comercio del sandbox."""
 
     monto: Decimal = Field(gt=0)
-    categoria: str = Field(pattern="^(COMIDA|ENTRETENIMIENTO|TRANSPORTE|EDUCACION|ROPA)$")
+    categoria: str = Field(min_length=1, max_length=80)
     comercio: str = Field(min_length=2, max_length=120)
+
+    @field_validator("categoria")
+    @classmethod
+    def _categoria(cls, value: str) -> str:
+        return codigo_flexible(value, tope=80)
     descripcion: str | None = Field(default=None, max_length=280)
     forzar_confirmacion: bool = False
 
@@ -22,11 +38,18 @@ class MovementRequest(BaseModel):
 
     tipo: str = Field(pattern="^(GASTO|INGRESO)$")
     monto: Decimal = Field(gt=0)
-    categoria: str = Field(default="COMIDA", pattern="^[A-Z0-9_]{2,32}$")
-    metodo_pago: str = Field(
-        default="EFECTIVO",
-        pattern="^(EFECTIVO|TARJETA_DEBITO|TARJETA_CREDITO|TRANSFERENCIA)$",
-    )
+    categoria: str = Field(default="COMIDA", min_length=1, max_length=80)
+    metodo_pago: str = Field(default="EFECTIVO", min_length=1, max_length=40)
+
+    @field_validator("categoria")
+    @classmethod
+    def _categoria(cls, value: str) -> str:
+        return codigo_flexible(value, tope=80)
+
+    @field_validator("metodo_pago")
+    @classmethod
+    def _metodo(cls, value: str) -> str:
+        return codigo_flexible(value, tope=40)
     notas: str | None = Field(default=None, max_length=280)
     recurrencia: str = Field(default="UNICA", pattern="^(UNICA|SEMANAL|MENSUAL)$")
     bucket: str = Field(default="DESEOS", pattern="^(NECESIDADES|DESEOS|AHORRO)$")

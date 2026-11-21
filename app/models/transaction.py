@@ -48,7 +48,7 @@ class Transaccion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     monto: Mapped[Decimal] = mapped_column(Numeric(18, 2), nullable=False)
     moneda: Mapped[str] = mapped_column(String(3), nullable=False, default="COP")
     descripcion: Mapped[str | None] = mapped_column(String(280), nullable=True)
-    categoria: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    categoria: Mapped[str | None] = mapped_column(String(80), nullable=True)
     comercio: Mapped[str | None] = mapped_column(String(120), nullable=True)
     iniciada_por_usuario_id: Mapped[UUID] = mapped_column(
         Uuid(as_uuid=True),
@@ -70,7 +70,7 @@ class Transaccion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         nullable=False,
         default=False,
     )
-    metodo_pago: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    metodo_pago: Mapped[str | None] = mapped_column(String(40), nullable=True)
     notas: Mapped[str | None] = mapped_column(String(280), nullable=True)
     recurrencia: Mapped[str | None] = mapped_column(String(20), nullable=True)
     bucket: Mapped[str | None] = mapped_column(String(20), nullable=True)

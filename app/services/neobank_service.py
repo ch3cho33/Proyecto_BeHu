@@ -24,10 +24,37 @@ HORMIGA_TOPE = Decimal("80000.00")
 VENTANA_HORMIGA = timedelta(hours=48)
 
 
+BUCKET_POR_CATEGORIA = {
+    "COMIDA": "NECESIDADES",
+    "TRANSPORTE": "NECESIDADES",
+    "EDUCACION": "NECESIDADES",
+    "SALUD": "NECESIDADES",
+    "VIVIENDA": "NECESIDADES",
+    "SERVICIOS": "NECESIDADES",
+    "SUPERMERCADO": "NECESIDADES",
+    "IMPUESTOS": "NECESIDADES",
+    "FAMILIA": "NECESIDADES",
+    "TRABAJO": "NECESIDADES",
+    "ROPA": "DESEOS",
+    "ENTRETENIMIENTO": "DESEOS",
+    "OCIO": "DESEOS",
+    "SUSCRIPCIONES": "DESEOS",
+    "VIAJES": "DESEOS",
+    "DEPORTES": "DESEOS",
+    "REGALOS": "DESEOS",
+    "CUIDADO_PERSONAL": "DESEOS",
+    "TECNOLOGIA": "DESEOS",
+}
+
+
 def _categoria(codigo: str) -> str:
     if codigo == "OCIO":
         return "ENTRETENIMIENTO"
     return codigo
+
+
+def bucket_de(codigo: str) -> str:
+    return BUCKET_POR_CATEGORIA.get(_categoria(codigo), "DESEOS")
 
 
 def _instante(valor: datetime | None) -> datetime:
@@ -82,7 +109,7 @@ async def registrar(db: AsyncSession, usuario: Usuario, payload: MovementRequest
     transaccion.metodo_pago = payload.metodo_pago
     transaccion.notas = payload.notas
     transaccion.recurrencia = payload.recurrencia
-    transaccion.bucket = payload.bucket
+    transaccion.bucket = bucket_de(transaccion.categoria or payload.categoria)
     transaccion.is_impulsive = bool(payload.forzar_confirmacion)
     redondeo = Decimal("0.00")
     meta_nombre: str | None = None
