@@ -349,29 +349,3 @@ Proyecto desarrollado para la asignatura **Fundamentos de Ingeniería de Softwar
 * **Santiago Báez Parra** — *Frontend & UX/UI Director* (PWA en Next.js 15, Design System dual y visualización de datos).
 
 
-## Arquitectura
-
-| Capa | Pieza |
-| --- | --- |
-| PWA | Next.js 15, React 19, tema claro y oscuro |
-| API | FastAPI en Vercel (`app.main:app`), prefijo `/api/v1` |
-| Ledger | Neon PostgreSQL, SQLAlchemy 2 async |
-| Hábitos y backup híbrido | MongoDB Atlas, con JSON local si Atlas no responde |
-| Objetos | AWS S3 cuando hay `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` y `AWS_S3_BUCKET` o `AWS_S3_KYC_BUCKET` |
-| Cifrado | AES-256-GCM. La clave deriva de `JWT_SECRET` y, si existe, `AWS_KMS_KEY_ID` |
-
-```mermaid
-erDiagram
-  USUARIO ||--|| CUENTA : tiene
-  USUARIO ||--o{ FAMILY_INVITATION : invita
-  USUARIO ||--o{ NOTIFICACION : recibe
-  USUARIO ||--o{ CATEGORIA_PERSONAL : crea
-  CUENTA ||--o{ SUPERVISION_CUENTA : vincula
-  CUENTA ||--o{ META_AHORRO : congela
-  TRANSACCION ||--|{ LEDGER_CONTABLE : partida_doble
-  CUENTA ||--o{ LEDGER_CONTABLE : asiento
-  USUARIO ||--o{ PROGRESO_EDUCATIVO : completa
-```
-
-`transferir()` escribe el débito, el crédito y el sello HMAC en la misma operación. El Junior no ve asientos `es_transferencia_global`.
-
