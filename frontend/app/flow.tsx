@@ -150,7 +150,7 @@ export function MovementDesk({
   onIncome: (monto: string) => Promise<unknown>;
   onSendBudget: (cuentaId: string, monto: string) => Promise<unknown>;
   onSendKey: (llave: string, monto: string) => Promise<unknown>;
-  onReceipt: (id: string) => Promise<{ asientos: { naturaleza: string; cuenta: string; monto: string }[]; transaccion: FlowMove }>;
+  onReceipt: (id: string) => Promise<{ asientos: { naturaleza: string; cuenta: string; monto: string; sello_hmac?: string | null }[]; transaccion: FlowMove }>;
   onCopy: (text: string) => void;
   request?: { action: "gasto" | "ingreso" | "enviar" | "qr"; id: number } | null;
   categories?: { codigo: string; nombre: string }[];
@@ -159,7 +159,7 @@ export function MovementDesk({
   const [draft, setDraft] = useState<Draft>({ monto: "", categoria: "COMIDA", metodo: "TARJETA_DEBITO", bucket: "DESEOS", notas: "", redondear: false });
   const [filter, setFilter] = useState("Todos");
   const [query, setQuery] = useState("");
-  const [receipt, setReceipt] = useState<{ asientos: { naturaleza: string; cuenta: string; monto: string }[]; transaccion: FlowMove } | null>(null);
+  const [receipt, setReceipt] = useState<{ asientos: { naturaleza: string; cuenta: string; monto: string; sello_hmac?: string | null }[]; transaccion: FlowMove } | null>(null);
   const [qr, setQr] = useState("");
   const [sendAmount, setSendAmount] = useState("20000");
   const [destKey, setDestKey] = useState("");
@@ -314,7 +314,7 @@ export function MovementDesk({
           <ul className="mt-4 space-y-2 text-sm">
             {receipt.asientos.map((line, index) => (
               <li key={index} className="flex justify-between border-b border-line py-2">
-                <span>{line.naturaleza} · {line.cuenta}</span>
+                <span>{line.naturaleza} · {line.cuenta}{line.sello_hmac ? ` · sello ${line.sello_hmac.slice(0, 8)}` : ""}</span>
                 <span>{money(line.monto, currency)}</span>
               </li>
             ))}

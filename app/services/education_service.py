@@ -75,6 +75,16 @@ CAPSULAS = [
         "insignia": "Ahorrador Pro",
         "orden": 4,
     },
+    {
+        "slug": "defensa-impulsos",
+        "titulo": "Defensa contra compras impulsivas y apuestas",
+        "resumen": "Una pausa de unos segundos y un tope diario evitan que una racha o una apuesta se coma la meta.",
+        "pregunta": "Ante una compra fuera de tu patrón, BeHu primero…",
+        "opciones": ["La cobra igual", "Pide una pausa consciente", "Sube el límite solo", "Oculta el movimiento"],
+        "respuesta_correcta": "1",
+        "insignia": "Escudo de impulso",
+        "orden": 5,
+    },
 ]
 
 
@@ -116,6 +126,7 @@ PRESENTACION = {
     "regla-50-30-20": ("Presupuesto", 2, "Maestro del Presupuesto"),
     "gasto-hormiga": ("Hábitos", 2, "Escudo Financiero"),
     "ahorro-visual": ("Metas", 3, "Ahorrador Pro"),
+    "defensa-impulsos": ("Hábitos", 3, "Escudo Financiero"),
 }
 
 

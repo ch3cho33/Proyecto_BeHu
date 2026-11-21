@@ -57,6 +57,16 @@ class UnlinkNotConfirmed(DomainError):
     status_code = 400
 
 
+class PatternPause(DomainError):
+    """Pausa consciente: compras seguidas o monto fuera del ticket habitual."""
+
+    status_code = 409
+
+    def __init__(self, payload: dict) -> None:
+        self.detail = payload
+        Exception.__init__(self, str(payload.get("mensaje", "Patrón de gasto")))
+
+
 class ImpulsiveSpend(DomainError):
     """Alerta pedagógica. El débito no se registra hasta forzar la confirmación."""
 

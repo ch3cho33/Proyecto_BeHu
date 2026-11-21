@@ -2,6 +2,16 @@
 
 Todos los cambios relevantes del backend BeHu se registran aquí.
 
+## [5.0.0] — 2026-11-21 — Cierre de producto
+
+### Added
+
+- `POST /api/v1/ai/consult` acepta `message`, `question` o `pregunta` y responde con `reply`, `response`, `insights` y `suggested_actions`. El chat apaga «escribiendo» en `finally`.
+- Modo claro (`#F8FAFC`) y oscuro, guardado en `localStorage`. El inicio queda en saldo, tarjeta, acciones, Score, límites, categorías y los últimos movimientos.
+- Un Junior con dos compras en tres horas, o un monto mayor a 1,5 veces su ticket, recibe una pausa consciente y una alerta en la campana.
+- Aprende separa rutas, reto con tiempo, flashcards e insignias. El cierre del reto llama al quiz existente.
+- `POST /api/v1/system/backup` cifra el snapshot con AES-256-GCM y lo firma con SHA-256. Sin llaves de S3 queda en el almacén híbrido y se puede descargar. El KYC se guarda cifrado y cada asiento del ledger lleva sello HMAC.
+
 ## [4.0.0] — 2026-11-19 — Landing, Mini contextual y alertas
 
 ### Added

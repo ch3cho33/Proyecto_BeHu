@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from uuid import uuid4
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +13,7 @@ from app.models.transaction import EstadoTransaccion, TipoTransaccion, Transacci
 from app.models.user import Usuario
 from app.schemas.transaction import SpendRequest
 from app.services.account_service import get_cuenta_usuario
-from app.services.exceptions import CardBlocked, ImpulsiveSpend, InsufficientFunds
+from app.services.exceptions import CardBlocked, ImpulsiveSpend, InsufficientFunds, PatternPause
 from app.services.ledger_service import transferir
 from app.services.sandbox_accounts import MERCHANT_EMAIL, obtener_cuenta_sistema
 
@@ -64,6 +65,64 @@ def _razones_impulso(
     return razones
 
 
+async def _pausar_si_patron(db: AsyncSession, usuario: Usuario, monto: Decimal, *, forzar: bool) -> None:
+    desde = datetime.now(timezone.utc) - timedelta(hours=3)
+    recientes = (
+        await db.scalars(
+            select(Transaccion).where(
+                Transaccion.iniciada_por_usuario_id == usuario.id,
+                Transaccion.tipo == TipoTransaccion.COMPRA.value,
+                Transaccion.estado == EstadoTransaccion.COMPLETADA.value,
+                Transaccion.created_at >= desde,
+            )
+        )
+    ).all()
+    historicas = (
+        await db.scalars(
+            select(Transaccion)
+            .where(
+                Transaccion.iniciada_por_usuario_id == usuario.id,
+                Transaccion.tipo == TipoTransaccion.COMPRA.value,
+                Transaccion.estado == EstadoTransaccion.COMPLETADA.value,
+            )
+            .order_by(Transaccion.created_at.desc())
+            .limit(30)
+        )
+    ).all()
+    mensajes: list[str] = []
+    if len(recientes) >= 2:
+        mensajes.append("Has realizado varias compras seguidas hoy")
+    if historicas:
+        promedio = sum((Decimal(tx.monto) for tx in historicas), Decimal("0")) / Decimal(len(historicas))
+        if promedio > 0 and monto > promedio * Decimal("1.5"):
+            factor = (monto / promedio).quantize(Decimal("0.1"))
+            mensajes.append(f"Este gasto es {factor}x mayor a tu promedio habitual")
+    if not mensajes:
+        return
+    from app.models.notification import Notificacion
+
+    db.add(
+        Notificacion(
+            usuario_id=usuario.id,
+            clave=f"patron:{uuid4()}",
+            tipo="PATRON_ANOMALO",
+            severity="medium",
+            titulo="Pausa de estabilidad",
+            detalle=" ".join(mensajes),
+            sugerencia="Espera unas horas o baja el monto. Un ritmo estable protege el Score mejor que una racha de compras.",
+        )
+    )
+    await db.commit()
+    if not forzar:
+        raise PatternPause(
+            {
+                "code": "PATRON_ANOMALO",
+                "mensaje": " ".join(mensajes),
+                "accion": "Reenvía con forzar_confirmacion=true para continuar, o cancela el gasto.",
+            }
+        )
+
+
 async def simular_compra(
     db: AsyncSession,
     usuario: Usuario,
@@ -79,6 +138,9 @@ async def simular_compra(
     saldo = Decimal(cuenta.saldo)
     if saldo < monto:
         raise InsufficientFunds("Fondos insuficientes para esta compra")
+
+    if usuario.rol == "JUNIOR":
+        await _pausar_si_patron(db, usuario, monto, forzar=payload.forzar_confirmacion)
 
     if cuenta.aplica_limites_de_gasto() and not payload.forzar_confirmacion:
         ahora = datetime.now(timezone.utc)

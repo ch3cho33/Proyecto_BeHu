@@ -5,6 +5,11 @@ from pydantic import BaseModel, Field
 
 class AiConsultRequest(BaseModel):
     pregunta: str | None = Field(default=None, max_length=280)
+    message: str | None = Field(default=None, max_length=280)
+    question: str | None = Field(default=None, max_length=280)
+
+    def texto(self) -> str | None:
+        return self.pregunta or self.message or self.question
 
 
 class AiConsultResponse(BaseModel):
@@ -15,6 +20,10 @@ class AiConsultResponse(BaseModel):
     recomendaciones: list[str]
     fuente: str
     created_at: str
+    reply: str
+    response: str
+    insights: list[str]
+    suggested_actions: list[str]
 
 
 class ParentalAlert(BaseModel):

@@ -76,6 +76,7 @@ def _add_v2_columns(connection) -> None:
             ("bucket", "VARCHAR(20)"),
             ("is_impulsive", flag),
         ],
+        "ledger_contable": [("sello_hmac", "VARCHAR(64)")],
     }
     for table, columns in plan.items():
         if not inspector.has_table(table):

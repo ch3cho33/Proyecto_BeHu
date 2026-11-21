@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
+from app.core.crypto import cifrar
 from app.core.storage import guardar_documento_kyc
 from app.models.user import KycStatus, Usuario
 
@@ -27,9 +28,10 @@ async def upload_kyc(
     guardado = guardar_documento_kyc(
         usuario_id=str(user.id),
         filename=archivo.filename or "documento",
-        content=contenido,
-        content_type=archivo.content_type or "application/octet-stream",
+        content=cifrar(contenido).encode(),
+        content_type="application/octet-stream",
     )
+    guardado["cifrado"] = "AES-256-GCM"
     user.kyc_status = KycStatus.IN_REVIEW.value
     await db.commit()
     guardado["kyc_status"] = user.kyc_status

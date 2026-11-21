@@ -262,6 +262,7 @@ async def consultar(db: AsyncSession, usuario: Usuario, pregunta: str | None) ->
             "aceptada": None,
         }
     )
+    reply = "\n".join(f"• {linea}" for linea in recomendaciones)
     return AiConsultResponse(
         id=documento["_id"],
         rol=usuario.rol,
@@ -270,6 +271,10 @@ async def consultar(db: AsyncSession, usuario: Usuario, pregunta: str | None) ->
         recomendaciones=recomendaciones,
         fuente=fuente,
         created_at=documento["created_at"],
+        reply=reply,
+        response=reply,
+        insights=recomendaciones[:4],
+        suggested_actions=recomendaciones[-2:],
     )
 
 

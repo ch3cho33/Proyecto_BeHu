@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { KeyChip, MovementDesk, QuickActions, type Draft } from "./flow";
+import { Academy } from "./academy";
+import { MovementDesk, QuickActions, type Draft } from "./flow";
 import { PublicSite } from "./landing";
-import { Donut, ScoreGauge, Skeleton, Toasts, VirtualCard, WeekBars, labelCategory, type Toast } from "./ui";
+import { Donut, ScoreGauge, Skeleton, Toasts, VirtualCard, labelCategory, type Toast } from "./ui";
 import { Bell, BookOpen, Home, LogOut, PieChart, Settings as SettingsIcon, Sparkles, Target, Users, Wallet } from "lucide-react";
 
 const API =
@@ -66,7 +67,7 @@ type Invite = {
 };
 type Score = { puntaje: number; nivel: string; factores_positivos?: { etiqueta: string; puntos: number }[]; factores_negativos?: { etiqueta: string; puntos: number }[] };
 type Lesson = { id: string; titulo: string; resumen: string; pregunta: string; opciones: string[]; completado: boolean; insignia: string; categoria?: string; duracion_min?: number };
-type Advice = { resumen: string; recomendaciones: string[] };
+type Advice = { resumen: string; recomendaciones?: string[]; reply?: string; response?: string; insights?: string[] };
 type Alert = { tipo: string; junior_nombre: string; mensaje: string; sugerencia: string; severity?: string; badge?: string | null };
 type Activity = { id: string; categoria?: string | null; metodo_pago?: string | null; fecha: string; monto: string; is_impulsive: boolean; es_hormiga: boolean; descripcion?: string | null };
 type Budget = {
@@ -148,9 +149,10 @@ export default function HomePage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [budget, setBudget] = useState<Budget | null>(null);
-  const [advice, setAdvice] = useState<Advice | null>(null);
   const [nudge, setNudge] = useState<Nudge | null>(null);
-  const [chat, setChat] = useState<{ role: "user" | "mini"; text: string; points?: string[] }[]>([]);
+  const [pattern, setPattern] = useState<Nudge | null>(null);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [moveTab, setMoveTab] = useState("Historial");
   const [llave, setLlave] = useState("");
   const [notes, setNotes] = useState<Note[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -201,6 +203,20 @@ export default function HomePage() {
     }
   }, [token, user]);
 
+  useEffect(() => {
+    const saved = window.localStorage.getItem("behu-theme");
+    const next = saved === "light" ? "light" : "dark";
+    setTheme(next);
+    document.documentElement.dataset.theme = next;
+  }, []);
+
+  function switchTheme() {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    window.localStorage.setItem("behu-theme", next);
+    document.documentElement.dataset.theme = next;
+  }
+
   async function enter(email: string, password: string) {
     setError("");
     try {
@@ -242,6 +258,7 @@ export default function HomePage() {
         }),
       });
       setNudge(null);
+      setPattern(null);
       const extra = Number(result.redondeo) > 0 ? ` + ${money(result.redondeo || 0, currency)} enviados a ${result.meta_redondeo} por redondeo automático` : "";
       toast("ok", (kind === "GASTO" ? "Compra registrada" : "Ingreso simulado registrado") + extra);
       if (token && user) {
@@ -256,6 +273,14 @@ export default function HomePage() {
       const payload = (err as Error & { payload?: { code?: string; mensaje?: string } }).payload;
       if (payload?.code === "GASTO_IMPULSIVO") {
         setNudge({ mensaje: payload.mensaje || "Gasto impulsivo", draft });
+        return;
+      }
+      if (payload?.code === "PATRON_ANOMALO") {
+        setPattern({ mensaje: payload.mensaje || "Patrón de gasto", draft });
+        if (token && user) {
+          const incoming = await api<Note[]>("/notifications", token).catch(() => []);
+          setNotes(incoming);
+        }
         return;
       }
       toast("danger", err instanceof Error ? err.message : "No se pudo registrar");
@@ -315,7 +340,8 @@ export default function HomePage() {
               <p className="text-base font-semibold tracking-tight">BeHu</p>
               <p className="text-[10px] font-semibold tracking-[0.16em] text-[#64748B]">{user.rol === "SENIOR" ? "NEOBANK" : "PERSONAL"}</p>
             </div>
-            <button className="relative ml-auto grid h-9 w-9 place-items-center rounded-xl text-[#94A3B8]" type="button" onClick={() => setBellOpen(true)} aria-label="Notificaciones">
+            <button className="ml-auto text-[10px] text-[#94A3B8]" type="button" onClick={switchTheme}>{theme === "dark" ? "Claro" : "Oscuro"}</button>
+            <button className="relative grid h-9 w-9 place-items-center rounded-xl text-[#94A3B8]" type="button" onClick={() => setBellOpen(true)} aria-label="Notificaciones">
               <Bell size={16} />
               {unread > 0 && <span className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[#F43F5E] px-1 text-[9px] text-white">{unread}</span>}
             </button>
@@ -357,6 +383,7 @@ export default function HomePage() {
       </aside>
       <main className="mx-auto w-full max-w-app px-4 pb-28 pt-6 md:px-8">
         <div className="mb-4 flex justify-end lg:hidden">
+          <button className="h-10 rounded-xl border border-[#1E293B] bg-[#111726] px-3 text-xs" type="button" onClick={switchTheme}>{theme === "dark" ? "Modo claro" : "Modo oscuro"}</button>
           <button className="relative grid h-10 w-10 place-items-center rounded-xl border border-[#1E293B] bg-[#111726]" type="button" onClick={() => setBellOpen(true)} aria-label="Notificaciones">
             <Bell size={16} />
             {unread > 0 && <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[#F43F5E] px-1 text-[9px] text-white">{unread}</span>}
@@ -366,35 +393,7 @@ export default function HomePage() {
         {loading && view === "inicio" ? <Skeleton /> : null}
         {view === "inicio" && !loading && (
           <section className="space-y-4">
-            <PageHead title={`Hola, ${user.nombres}`} subtitle={`Saldo en ${currency}. Tu llave y tus acciones rápidas viven aquí.`} action="Nuevo movimiento" onAction={() => { setDeskRequest({ action: "gasto", id: Date.now() }); setView("movimientos"); }} />
-            <div className="flex justify-end"><KeyChip llave={llave} onCopy={() => { navigator.clipboard.writeText(`@${llave}`); toast("ok", "Llave copiada"); }} /></div>
-            <article className="rounded-2xl border border-[#1E293B] bg-[#111726] p-4">
-              <div className="grid gap-4 lg:grid-cols-[180px_1fr]">
-                <ScoreGauge score={score?.puntaje ?? 0} level={score?.nivel || "Sin datos"} factors={[]} />
-                <div>
-                  <p className="text-sm text-[#94A3B8]">Salud financiera. El anillo resume el Score y los bloques separan lo que puedes gastar de lo que ya está reservado.</p>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <div className="rounded-xl border border-[#1E293B] p-3"><p className="text-xs text-[#94A3B8]">Saldo disponible (gasto)</p><p className="mt-1 font-semibold">{money(account?.saldo_disponible || account?.saldo || 0, currency)}</p></div>
-                    <div className="rounded-xl border border-[#1E293B] p-3"><p className="text-xs text-[#94A3B8]">Ahorro reservado en metas</p><p className="mt-1 font-semibold">{money(account?.saldo_congelado || 0, currency)}</p></div>
-                  </div>
-                </div>
-              </div>
-            </article>
-            <article className="rounded-2xl border border-[#1E293B] bg-[#111726] p-4">
-              <div className="flex items-center justify-between"><p className="font-semibold">Tus límites de gasto</p><button className="text-sm text-[#3B82F6]" type="button" onClick={() => setView("aprende")}>Micro-Learning</button></div>
-              <LimitBar label="Consumo semanal" real={week.reduce((sum, day) => sum + day.spent, 0)} goal={Number(account?.limite_gasto_semanal || 0)} />
-              <LimitBar label="Consumo mensual" real={gastosMes} goal={Number(account?.limite_gasto_mensual || 0)} />
-            </article>
-            <button className="w-full rounded-2xl border border-[#1E293B] bg-[#111726] p-4 text-left" type="button" onClick={() => setView("mini")}>
-              <p className="font-semibold">BeHu Mini</p>
-              <p className="mt-1 text-sm text-[#94A3B8]">Pregunta con tu saldo real en {currency}: {money(account?.saldo_disponible || account?.saldo || 0, currency)} disponibles.</p>
-            </button>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <Kpi label="Balance del mes" value={money(ingresosMes - gastosMes, currency)} />
-              <Kpi label="Gastos acumulados" value={money(gastosMes, currency)} />
-              <Kpi label="Ingresos del mes" value={money(ingresosMes, currency)} />
-              <Kpi label="Esta semana" value={money(week.reduce((sum, day) => sum + day.spent, 0), currency)} />
-            </div>
+            <PageHead title={`Hola, ${user.nombres}`} subtitle={`Disponible ${money(account?.saldo_disponible || account?.saldo || 0, currency)} · @${llave || "behu"}`} action="Nuevo movimiento" onAction={() => { setDeskRequest({ action: "gasto", id: Date.now() }); setView("movimientos"); }} />
             <QuickActions onOpen={(action) => { setDeskRequest({ action, id: Date.now() }); setView("movimientos"); }} />
             {invites.map((invite) => (
               <div key={invite.id} className="panel border-primary p-4">
@@ -406,26 +405,52 @@ export default function HomePage() {
                 </div>
               </div>
             ))}
-            <div className="grid gap-3 lg:grid-cols-[320px_1fr]">
+            <div className="grid gap-3 lg:grid-cols-[280px_1fr]">
               <VirtualCard holder={`${user.nombres} ${user.apellidos}`} accountId={account?.account_id || user.email} frozen={Boolean(account?.tarjeta_bloqueada)} />
-              <div className="grid gap-3 sm:grid-cols-3">
-                <Kpi label="Saldo disponible" value={money(account?.saldo_disponible || account?.saldo || 0, currency)} hint={`Congelado ${money(account?.saldo_congelado || 0, currency)}`} />
-                <Kpi label="Ingresos del mes" value={money(ingresosMes, currency)} />
-                <Kpi label="Gastos del mes" value={money(gastosMes, currency)} />
-              </div>
+              <Kpi label="Saldo disponible" value={money(account?.saldo_disponible || account?.saldo || 0, currency)} hint={`Reservado en metas ${money(account?.saldo_congelado || 0, currency)}`} />
+            </div>
+            <div className="grid gap-3 xl:grid-cols-2">
+              <ScoreGauge score={score?.puntaje ?? 0} level={score?.nivel || "Sin datos"} factors={[...(score?.factores_positivos || []), ...(score?.factores_negativos || [])]} />
+              <article className="rounded-2xl border border-[#1E293B] bg-[#111726] p-4">
+                <p className="font-semibold">Límites</p>
+                <LimitBar label="Semana" real={week.reduce((sum, day) => sum + day.spent, 0)} goal={Number(account?.limite_gasto_semanal || 0)} />
+                <LimitBar label="Mes" real={gastosMes} goal={Number(account?.limite_gasto_mensual || 0)} />
+              </article>
             </div>
             <div className="grid gap-3 xl:grid-cols-2">
               <Donut slices={categorias} totalLabel={money(gastosMes, currency)} />
-              <WeekBars days={week} />
+              <article className="rounded-2xl border border-[#1E293B] bg-[#111726] p-4">
+                <p className="font-semibold">Últimos movimientos</p>
+                {moves.slice(0, 4).map((move) => (
+                  <p key={move.id} className="mt-2 flex justify-between text-sm"><span>{move.descripcion || move.comercio || move.tipo}</span><span>{money(move.monto, currency)}</span></p>
+                ))}
+                {moves.length === 0 && <p className="mt-2 text-sm text-muted">Todavía no hay movimientos.</p>}
+              </article>
             </div>
-            <ScoreGauge
-              score={score?.puntaje ?? 0}
-              level={score?.nivel || "Sin datos"}
-              factors={[...(score?.factores_positivos || []), ...(score?.factores_negativos || [])]}
-            />
           </section>
         )}
         {view === "movimientos" && (
+          <section className="space-y-4">
+            <div className="grid gap-2 md:grid-cols-3">
+              {[
+                ["Historial", "Lista, filtros y registro rápido"],
+                ["50/30/20", "Necesidades, deseos y ahorro del mes"],
+                ["Extractos", "CSV y comprobante con sello"],
+              ].map(([id, copy]) => (
+                <button key={id} className={moveTab === id ? "rounded-2xl bg-white p-3 text-left text-[#090D16]" : "rounded-2xl border border-[#1E293B] bg-[#111726] p-3 text-left"} type="button" onClick={() => setMoveTab(id)}>
+                  <p className="text-sm font-semibold">{id}</p>
+                  <p className="mt-1 text-xs opacity-70">{copy}</p>
+                </button>
+              ))}
+            </div>
+            {moveTab === "50/30/20" && budget && (
+              <div className="space-y-3">
+                <Bar label="Necesidades 50%" real={budget.necesidades.real} goal={budget.necesidades.objetivo} />
+                <Bar label="Deseos 30%" real={budget.deseos.real} goal={budget.deseos.objetivo} />
+                <Bar label="Ahorro 20%" real={budget.ahorro.real} goal={budget.ahorro.objetivo} />
+              </div>
+            )}
+            {moveTab !== "50/30/20" && (
           <MovementDesk
             moves={moves}
             currency={currency}
@@ -448,6 +473,8 @@ export default function HomePage() {
             onCopy={(text) => { navigator.clipboard.writeText(text); toast("ok", "Llave copiada"); }}
             request={deskRequest}
           />
+            )}
+          </section>
         )}
         {view === "ajustes" && (
           <Settings
@@ -487,21 +514,14 @@ export default function HomePage() {
             onDone={() => refresh(token, user)}
           />
         )}
-        {view === "aprende" && <Learn token={token} lessons={lessons} onDone={async (message) => { toast(message.startsWith("Insignia") ? "ok" : "warn", message); await refresh(token, user); }} />}
+        {view === "aprende" && <Academy token={token} lessons={lessons} currency={currency} api={api} onDone={async (message) => { toast(message.startsWith("Insignia") ? "ok" : "warn", message); await refresh(token, user); }} />}
         {view === "mini" && (
           <Mini
             role={user.rol}
             currency={currency}
             saldo={money(account?.saldo_disponible || account?.saldo || 0, currency)}
             score={score?.puntaje ?? 0}
-            advice={advice}
-            chat={chat}
-            onAsk={async (pregunta) => {
-              setChat((items) => [...items, { role: "user", text: pregunta }]);
-              const result = await api<Advice>("/ai/consult", token, { method: "POST", body: JSON.stringify({ pregunta }) });
-              setAdvice(result);
-              setChat((items) => [...items, { role: "mini", text: result.resumen, points: result.recomendaciones }]);
-            }}
+            onAsk={async (pregunta) => api<Advice>("/ai/consult", token, { method: "POST", body: JSON.stringify({ message: pregunta }) })}
           />
         )}
       </main>
@@ -553,6 +573,18 @@ export default function HomePage() {
                 toast("warn", "Junior desvinculado");
                 await refresh(token, user);
               }}>Confirmar desvínculo</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {pattern && (
+        <div className="fixed inset-0 z-20 grid place-items-center bg-black/60 px-4">
+          <div className="panel w-full max-w-md border-warning p-5">
+            <p className="text-sm font-semibold text-warning">Pausa consciente</p>
+            <p className="mt-2 text-sm text-muted">{pattern.mensaje}</p>
+            <div className="mt-4 flex gap-2">
+              <button className="btn-secondary h-10 flex-1" type="button" onClick={() => setPattern(null)}>Pensarlo mejor</button>
+              <button className="h-10 flex-1 rounded-card bg-warning font-semibold text-bg" type="button" onClick={() => sendMovement("GASTO", pattern.draft, true)}>Continuar con la compra</button>
             </div>
           </div>
         </div>
@@ -633,10 +665,23 @@ function Family({ token, juniors, alerts, sent, onUnlink, onToast, onDone }: { t
   const [mesada, setMesada] = useState("20000");
   const [nombre, setNombre] = useState("");
   const [clave, setClave] = useState("BeHuJunior2!");
+  const [tab, setTab] = useState("Cuentas");
   return (
     <section className="space-y-4">
-      <h1 className="text-2xl font-semibold">Gestión familiar</h1>
-      <form className="panel space-y-2 p-4" onSubmit={async (event) => {
+      <h1 className="text-2xl font-semibold">Familia</h1>
+      <div className="grid gap-2 md:grid-cols-3">
+        {[
+          ["Cuentas", "Juniors, mesada y límites"],
+          ["Alertas", "Hormiga, impulso y gastos no pertinentes"],
+          ["Invitar", "Alta o vínculo con consentimiento"],
+        ].map(([id, copy]) => (
+          <button key={id} className={tab === id ? "rounded-2xl bg-white p-3 text-left text-[#090D16]" : "rounded-2xl border border-[#1E293B] bg-[#111726] p-3 text-left"} type="button" onClick={() => setTab(id)}>
+            <p className="text-sm font-semibold">{id}</p>
+            <p className="mt-1 text-xs opacity-70">{copy}</p>
+          </button>
+        ))}
+      </div>
+      {tab === "Invitar" && <form className="panel space-y-2 p-4" onSubmit={async (event) => {
         event.preventDefault();
         const body = { email, initial_budget: mesada, daily_limit: "50000", weekly_limit: "200000", monthly_limit: "500000" };
         try {
@@ -656,8 +701,8 @@ function Family({ token, juniors, alerts, sent, onUnlink, onToast, onDone }: { t
         <input className="h-11 w-full rounded-card border border-line bg-bg px-3" placeholder="Mesada" value={mesada} onChange={(event) => setMesada(event.target.value)} />
         <input className="h-11 w-full rounded-card border border-line bg-bg px-3" placeholder="Clave temporal" value={clave} onChange={(event) => setClave(event.target.value)} />
         <button className="btn-primary h-11 w-full" type="submit">Enviar invitación o crear</button>
-      </form>
-      <div className="space-y-2">
+      </form>}
+      {tab === "Invitar" && <div className="space-y-2">
         <h2 className="text-sm font-semibold text-muted">Pendientes de respuesta</h2>
         {sent.length === 0 && <p className="panel p-4 text-sm text-muted">No hay invitaciones esperando al Junior.</p>}
         {sent.map((invite) => (
@@ -666,17 +711,16 @@ function Family({ token, juniors, alerts, sent, onUnlink, onToast, onDone }: { t
             <p className="text-muted">PENDING · mesada {money(invite.initial_budget)}</p>
           </article>
         ))}
-      </div>
-      <h2 className="text-sm font-semibold text-muted">Dependientes activos</h2>
-      {alerts.map((alert) => (
+      </div>}
+      {tab === "Alertas" && alerts.map((alert) => (
         <article key={alert.tipo + alert.junior_nombre} className={`panel p-4 text-sm ${alert.severity === "high" ? "border-[#F43F5E]" : "border-warning"}`}>
           <p className={`font-semibold ${alert.severity === "high" ? "text-[#F43F5E]" : "text-warning"}`}>{alert.badge || alert.tipo}</p>
           <p className="mt-1">{alert.mensaje}</p>
           <p className="mt-1 text-muted">{alert.sugerencia}</p>
         </article>
       ))}
-      {juniors.length === 0 && <p className="panel p-4 text-sm text-muted">Todavía no hay Juniors activos.</p>}
-      {juniors.map((junior) => (
+      {tab === "Cuentas" && juniors.length === 0 && <p className="panel p-4 text-sm text-muted">Todavía no hay Juniors activos.</p>}
+      {tab === "Cuentas" && juniors.map((junior) => (
         <article key={junior.cuenta_junior_id} className="panel space-y-3 p-4">
           <VirtualCard
             holder={`${junior.nombres} ${junior.apellidos}`}
@@ -805,7 +849,7 @@ function Settings({
   return (
     <section className="space-y-4">
       <PageHead title="Ajustes y configuración" subtitle="Perfil, moneda y las categorías con las que registras movimientos." />
-      <Tabs items={["Perfil", "Categorías", "Límites"]} value={tab} onChange={setTab} />
+      <Tabs items={["Perfil", "Categorías", "Seguridad"]} value={tab} onChange={setTab} />
       {tab === "Perfil" && <form className="space-y-2 rounded-2xl border border-[#1E293B] bg-[#111726] p-4" onSubmit={async (event) => {
         event.preventDefault();
         const [nombres, ...resto] = nombre.trim().split(/\s+/);
@@ -831,11 +875,22 @@ function Settings({
           </div>
         </div>
       )}
-      {tab === "Límites" && <>
+      {tab === "Seguridad" && <>
       <article className="panel space-y-1 p-4 text-sm">
         <p className="font-semibold">{user.nombres} {user.apellidos}</p>
         <p className="text-muted">{user.email}</p>
-        <p>KYC {user.kyc_status || "PENDING"}</p>
+        <p>KYC {user.kyc_status === "VERIFIED" ? "Verificado · Cifrado AES-256" : user.kyc_status === "IN_REVIEW" ? "En revisión · Cifrado AES-256" : "Pendiente"}</p>
+        <button className="btn-secondary mt-3 h-10 px-3" type="button" onClick={async () => {
+          const data = await api<{ sha256: string; modo: string; snapshot: unknown }>("/system/backup", token, { method: "POST" });
+          const blob = new Blob([JSON.stringify(data.snapshot, null, 2)], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `behu-backup-${data.sha256.slice(0, 8)}.json`;
+          link.click();
+          URL.revokeObjectURL(url);
+          await onDone(`Backup ${data.modo}. Sello ${data.sha256.slice(0, 12)}`);
+        }}>Descargar backup firmado</button>
         <label className="btn-secondary mt-3 inline-flex h-10 cursor-pointer items-center px-3">
           Simular documento
           <input className="hidden" type="file" onChange={async (event) => {
@@ -849,14 +904,14 @@ function Settings({
           }} />
         </label>
       </article>
-      {tab === "Límites" && user.rol === "JUNIOR" && (
+      {tab === "Seguridad" && user.rol === "JUNIOR" && (
         <article className="panel p-4 text-sm">
           <p className="font-semibold">Límites de tu acudiente</p>
           <p className="mt-2 text-muted">Diario {money(account?.limite_gasto_diario || 0, currency)} · Semanal {money(account?.limite_gasto_semanal || 0, currency)} · Mensual {money(account?.limite_gasto_mensual || 0, currency)}</p>
           <p className="mt-2 text-dim">Estos topes tienen candado: solo tu Senior puede cambiarlos.</p>
         </article>
       )}
-      {tab === "Límites" && user.rol === "SENIOR" && juniors.map((junior) => (
+      {tab === "Seguridad" && user.rol === "SENIOR" && juniors.map((junior) => (
         <form key={junior.cuenta_junior_id} className="panel space-y-2 p-4" onSubmit={async (event) => {
           event.preventDefault();
           const form = new FormData(event.currentTarget);
@@ -894,12 +949,29 @@ function Tabs({ items, value, onChange }: { items: string[]; value: string; onCh
   );
 }
 
-function Mini({ role, currency, saldo, score, advice, chat, onAsk }: { role: Role; currency: string; saldo: string; score: number; advice: Advice | null; chat: { role: "user" | "mini"; text: string; points?: string[] }[]; onAsk: (pregunta: string) => Promise<void> }) {
+function Mini({ role, currency, saldo, score, onAsk }: { role: Role; currency: string; saldo: string; score: number; onAsk: (pregunta: string) => Promise<Advice> }) {
   const [text, setText] = useState("");
   const [typing, setTyping] = useState(false);
+  const [chat, setChat] = useState<{ role: "user" | "mini"; text: string; points?: string[] }[]>([]);
   const prompts = role === "SENIOR"
-    ? ["¿Puedo invertir en un CDT?", "¿Cómo van mis Juniors?", "Diagnostica gastos no pertinentes"]
-    : ["¿Cuánto puedo gastar hoy?", "¿Cómo va mi meta?", "Detecta mis gastos hormiga"];
+    ? ["¿Puedo invertir en un CDT?", "¿Cómo ahorro esta semana?", "¿Cómo evito gastos innecesarios?"]
+    : ["¿Cuánto puedo gastar hoy?", "¿Cómo ahorro esta semana?", "¿Cómo evito gastos innecesarios?"];
+
+  async function ask(pregunta: string) {
+    setChat((items) => [...items, { role: "user", text: pregunta }]);
+    setTyping(true);
+    try {
+      const data = await onAsk(pregunta);
+      const reply = data.reply || data.response || data.resumen || "BeHu Mini no devolvió texto.";
+      setChat((items) => [...items, { role: "mini", text: reply, points: data.insights || data.recomendaciones }]);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : "No pude responder ahora.";
+      setChat((items) => [...items, { role: "mini", text: detail }]);
+    } finally {
+      setTyping(false);
+    }
+  }
+
   return (
     <section className="space-y-3">
       <div className="flex items-center gap-3 rounded-2xl border border-[#1E293B] bg-[#111726] p-4">
@@ -912,7 +984,7 @@ function Mini({ role, currency, saldo, score, advice, chat, onAsk }: { role: Rol
       </div>
       <div className="flex gap-2 overflow-auto">
         {prompts.map((prompt) => (
-          <button key={prompt} className="shrink-0 rounded-full border border-[#1E293B] px-3 py-2 text-xs" type="button" onClick={async () => { setTyping(true); await onAsk(prompt); setTyping(false); }}>{prompt}</button>
+          <button key={prompt} className="shrink-0 rounded-full border border-[#1E293B] px-3 py-2 text-xs" type="button" onClick={() => ask(prompt)}>{prompt}</button>
         ))}
       </div>
       <div className="min-h-48 space-y-3 rounded-2xl border border-[#1E293B] bg-[#111726] p-4">
@@ -924,9 +996,8 @@ function Mini({ role, currency, saldo, score, advice, chat, onAsk }: { role: Rol
           </div>
         ))}
         {typing && <p className="text-sm text-[#3B82F6]">BeHu Mini está escribiendo…</p>}
-        {advice && chat.length === 0 && <p className="text-sm">{advice.resumen}</p>}
       </div>
-      <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); if (text.trim()) onAsk(text.trim()); setText(""); }}>
+      <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); if (!text.trim()) return; ask(text.trim()); setText(""); }}>
         <input className="h-11 flex-1 rounded-card border border-line bg-surface px-3" value={text} onChange={(event) => setText(event.target.value)} placeholder="Escribe tu pregunta" />
         <button className="btn-primary h-11 px-4" type="submit">Enviar</button>
       </form>

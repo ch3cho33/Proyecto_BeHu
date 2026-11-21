@@ -144,11 +144,16 @@ async def test_invitation_consent_freeze_and_mini(client: httpx.AsyncClient):
     assert Decimal(cuenta["saldo_congelado"]) == Decimal("4000.00")
     assert Decimal(cuenta["saldo"]) == Decimal("16000.00")
 
-    for _ in range(3):
+    for indice in range(3):
         compra = await client.post(
             "/api/v1/transactions/spend",
             headers=junior,
-            json={"monto": "1500", "categoria": "COMIDA", "comercio": "Snack"},
+            json={
+                "monto": "1500",
+                "categoria": "COMIDA",
+                "comercio": "Snack",
+                "forzar_confirmacion": indice >= 2,
+            },
         )
         assert compra.status_code == 201, compra.text
 

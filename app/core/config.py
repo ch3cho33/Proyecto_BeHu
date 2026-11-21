@@ -43,6 +43,7 @@ class Settings(BaseSettings):
     aws_access_key_id: str = Field(default="")
     aws_secret_access_key: str = Field(default="")
     aws_s3_kyc_bucket: str = Field(default="")
+    aws_s3_bucket: str = Field(default="")
 
     @field_validator("database_url")
     @classmethod

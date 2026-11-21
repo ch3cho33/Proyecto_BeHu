@@ -87,6 +87,7 @@ class LedgerLine(BaseModel):
     naturaleza: str
     cuenta: str
     monto: Decimal
+    sello_hmac: str | None = None
 
 
 class ReceiptPublic(BaseModel):

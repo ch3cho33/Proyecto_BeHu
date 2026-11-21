@@ -44,7 +44,7 @@ async def test_seed_is_idempotent():
         )
         modulos = await db.scalar(select(func.count()).select_from(ModuloEducativo))
     assert seniors == 1
-    assert modulos == 4
+    assert modulos == 5
 
 
 @pytest.mark.asyncio
@@ -153,7 +153,7 @@ async def test_mvp_cycle(client: httpx.AsyncClient):
     # HU-08 / HU-09 score y quiz
     antes = (await client.get("/api/v1/scoring/me", headers=hj)).json()
     modules = await client.get("/api/v1/education/modules", headers=hj)
-    assert modules.status_code == 200 and len(modules.json()) == 4
+    assert modules.status_code == 200 and len(modules.json()) == 5
     modulo = modules.json()[0]
     malo = await client.post(
         f"/api/v1/education/modules/{modulo['id']}/complete",

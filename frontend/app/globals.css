@@ -77,6 +77,59 @@ select:focus-visible {
   border-radius: 16px;
 }
 
+html[data-theme="light"] {
+  --bg: #f8fafc;
+  --bg-elevated: #f1f5f9;
+  --surface: #ffffff;
+  --surface-hover: #f8fafc;
+  --surface-strong: #e2e8f0;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text: #0f172a;
+  --text-muted: #475569;
+  --text-dim: #64748b;
+  --primary: #2563eb;
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #e11d48;
+}
+
+html[data-theme="light"] .bg-\[\#111726\],
+html[data-theme="light"] .bg-\[\#0F1422\],
+html[data-theme="light"] .bg-\[\#090D16\],
+html[data-theme="light"] .bg-\[\#1A2338\] {
+  background-color: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+}
+
+html[data-theme="light"] .text-\[\#F8FAFC\],
+html[data-theme="light"] .text-\[\#94A3B8\],
+html[data-theme="light"] .text-\[\#64748B\] {
+  color: #475569;
+}
+
+html[data-theme="light"] .border-\[\#1E293B\],
+html[data-theme="light"] .border-\[\#334155\] {
+  border-color: #e2e8f0;
+}
+
+html[data-theme="light"] .bg-white {
+  background-color: #0f172a;
+  color: #ffffff;
+}
+
+html[data-theme="light"] .text-\[\#090D16\] {
+  color: #ffffff;
+}
+
+html[data-theme="light"] .nav-dock,
+html[data-theme="light"] .nav-dock-mobile {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: #e2e8f0;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+}
+
 .nav-dock {
   backdrop-filter: blur(24px);
 }

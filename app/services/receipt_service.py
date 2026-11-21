@@ -33,6 +33,7 @@ async def comprobante(db: AsyncSession, usuario: Usuario, transaccion_id: UUID) 
             naturaleza=asiento.naturaleza,
             cuenta=asiento.cuenta.tipo,
             monto=asiento.monto,
+            sello_hmac=asiento.sello_hmac,
         )
         for asiento in transaccion.asientos
     ]

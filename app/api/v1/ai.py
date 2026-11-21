@@ -20,7 +20,7 @@ async def consult(
     db: Annotated[AsyncSession, Depends(get_db)],
     payload: AiConsultRequest | None = None,
 ) -> AiConsultResponse:
-    pregunta = payload.pregunta if payload else None
+    pregunta = payload.texto() if payload else None
     return await behu_mini_ai.consultar(db, user, pregunta)
 
 

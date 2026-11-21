@@ -14,6 +14,7 @@ from app.api.v1.goals import router as goals_router
 from app.api.v1.kyc import router as kyc_router
 from app.api.v1.scoring import router as scoring_router
 from app.api.v1.supervision import router as supervision_router
+from app.api.v1.system import router as system_router
 from app.api.v1.transactions import router as transactions_router
 from app.api.v1.transfers import router as transfers_router
 
@@ -32,3 +33,4 @@ api_v1_router.include_router(education_router)
 api_v1_router.include_router(kyc_router)
 api_v1_router.include_router(categories_router)
 api_v1_router.include_router(notifications_router)
+api_v1_router.include_router(system_router)

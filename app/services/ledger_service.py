@@ -107,22 +107,24 @@ async def transferir(
     db.add(transaccion)
     await db.flush()
 
-    db.add(
-        LedgerContable(
+    from app.core.crypto import sello_ledger
+
+    def _asiento(cuenta_id, naturaleza: str) -> LedgerContable:
+        return LedgerContable(
             transaccion_id=transaccion.id,
-            cuenta_id=origen.id,
-            naturaleza=NaturalezaAsiento.DEBITO.value,
+            cuenta_id=cuenta_id,
+            naturaleza=naturaleza,
             monto=monto,
+            sello_hmac=sello_ledger(
+                transaccion_id=str(transaccion.id),
+                cuenta_id=str(cuenta_id),
+                naturaleza=naturaleza,
+                monto=f"{monto:.2f}",
+            ),
         )
-    )
-    db.add(
-        LedgerContable(
-            transaccion_id=transaccion.id,
-            cuenta_id=destino.id,
-            naturaleza=NaturalezaAsiento.CREDITO.value,
-            monto=monto,
-        )
-    )
+
+    db.add(_asiento(origen.id, NaturalezaAsiento.DEBITO.value))
+    db.add(_asiento(destino.id, NaturalezaAsiento.CREDITO.value))
 
     origen.saldo = Decimal(origen.saldo) - monto
     destino.saldo = Decimal(destino.saldo) + monto
