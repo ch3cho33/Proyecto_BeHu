@@ -19,7 +19,7 @@
 
 ## 1. Visión, Esencia y Propuesta de Valor
 
-**BeHu** (*Behavior & Human Finance*) es una plataforma fintech de **finanzas personales y familiares colaborativas** diseñada como una *Progressive Web App* (PWA) instalable. Su propósito es sustituir los extractos bancarios pasivos y las hojas de cálculo manuales por una experiencia proactiva que **transforma gastos cotidianos en hábitos financieros saludables**.
+**BeHu** es una plataforma fintech de **finanzas personales y familiares colaborativas** diseñada como una *Progressive Web App* (PWA) instalable. Su propósito es sustituir los extractos bancarios pasivos y las hojas de cálculo manuales por una experiencia proactiva que **transforma gastos cotidianos en hábitos financieros saludables**.
 
 > **Nota de Alcance Sandbox:** BeHu opera como un entorno Neobanco Sandbox completo sobre un motor contable de partida doble real (`Ledger ACID`). No procesa dinero fiduciario real ni se conecta a redes interbancarias ACH/SWIFT, permitiendo experimentar con total seguridad flujos financieros familiares, control parental, redondeo automático, llaves `@usuario.behu` y educación gamificada.
 
