@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🏦 BeHu — *Behavior & Human Finance*
+# BeHu
 ### Ecosistema Neobanco Familiar Colaborativo con Inteligencia Artificial Simbólica
 
 [![Release](https://img.shields.io/badge/Release-v5.0.0-10B981?style=for-the-badge&logo=github)](https://github.com/ch3cho33/Proyecto_BeHu)
@@ -17,24 +17,7 @@
 
 ---
 
-## 📑 Tabla de Contenidos (Wiki Navigation)
-
-1. [Visión, Esencia y Propuesta de Valor](#-1-visión-esencia-y-propuesta-de-valor)
-2. [El Problema Socioeconómico y Nuestra Solución](#-2-el-problema-socioeconómico-y-nuestra-solución)
-3. [Roles Jerárquicos y Flujos de Usuario](#-3-roles-jerárquicos-y-flujos-de-usuario)
-4. [Arquitectura Cloud y Persistencia Políglota](#-4-arquitectura-cloud-y-persistencia-políglota)
-5. [Modelo de Datos (Entidad–Relación & NoSQL)](#-5-modelo-de-datos-entidadrelación--nosql)
-6. [Motor Inteligente: BeHu Mini IA (Sistema Experto)](#-6-motor-inteligente-behu-mini-ia-sistema-experto)
-7. [Seguridad Bancaria, Criptografía y Respaldo en Nube](#-7-seguridad-bancaria-criptografía-y-respaldo-en-nube)
-8. [Catálogo de Endpoints REST API (`/api/v1`)](#-8-catálogo-de-endpoints-rest-api-apiv1)
-9. [Trazabilidad Ágil: Sprints e Historias de Usuario](#-9-trazabilidad-ágil-sprints-e-historias-de-usuario)
-10. [Design System y Experiencia Neobanco PWA](#-10-design-system-y-experiencia-neobanco-pwa)
-11. [Instalación Local, Pruebas y Despliegue en Vercel](#-11-instalación-local-pruebas-y-despliegue-en-vercel)
-12. [Equipo de Ingeniería (Jäger Group)](#-12-equipo-de-ingeniería-jäger-group)
-
----
-
-## 🌟 1. Visión, Esencia y Propuesta de Valor
+## 1. Visión, Esencia y Propuesta de Valor
 
 **BeHu** (*Behavior & Human Finance*) es una plataforma fintech de **finanzas personales y familiares colaborativas** diseñada como una *Progressive Web App* (PWA) instalable. Su propósito es sustituir los extractos bancarios pasivos y las hojas de cálculo manuales por una experiencia proactiva que **transforma gastos cotidianos en hábitos financieros saludables**.
 
@@ -52,7 +35,7 @@
 
 ---
 
-## 📊 2. El Problema Socioeconómico y Nuestra Solución
+## 2. El Problema Socioeconómico y Nuestra Solución
 
 En Colombia y Latinoamérica, los jóvenes acceden cada vez más temprano al crédito y al consumo digital sin contar con herramientas prácticas de educación financiera:
 
@@ -65,11 +48,11 @@ En Colombia y Latinoamérica, los jóvenes acceden cada vez más temprano al cr�
 
 ---
 
-## 👥 3. Roles Jerárquicos y Flujos de Usuario
+## 3. Roles Jerárquicos y Flujos de Usuario
 
 ```mermaid
 flowchart LR
-    subgraph SENIOR["🛡️ Rol SENIOR (Acudiente / Administrador)"]
+    subgraph SENIOR["Rol SENIOR (Acudiente / Administrador)"]
         S1["Visión Global y Balance"]
         S2["Invitación Familiar por Correo"]
         S3["Asignación Atómica de Mesadas"]
@@ -78,7 +61,7 @@ flowchart LR
         S6["Alertas Parentales BeHu Mini"]
     end
 
-    subgraph JUNIOR["🚀 Rol JUNIOR (Joven / Estudiante)"]
+    subgraph JUNIOR["Rol JUNIOR (Joven / Estudiante)"]
         J1["Saldo Privado (Oculta saldo Senior)"]
         J2["Aceptar / Rechazar Invitación"]
         J3["Metas con Saldo Congelado"]
@@ -95,37 +78,12 @@ flowchart LR
 
 ---
 
-## ☁️ 4. Arquitectura Cloud y Persistencia Políglota
+##  4. Stack Tecnológico Detallado
 
 BeHu está diseñado bajo una **arquitectura orientada a servicios modulares desacoplados** y **persistencia políglota** (SQL relacional ACID para el libro mayor contable + NoSQL documental para hábitos y telemetría IA), desplegado en infraestructura Serverless de alta disponibilidad.
 
-```mermaid
-graph TB
-    subgraph CLIENT["📱 Capa Cliente (Edge CDN — Vercel)"]
-        PWA["Next.js 15 + React 19 PWA<br/>(Tema Claro/Oscuro · Gráficos SVG · Service Worker)"]
-    end
-
-    subgraph API["⚙️ Capa de Servicios y Lógica Core (FastAPI Serverless)"]
-        AUTH["Auth & RBAC Service<br/>(JWT + Argon2)"]
-        LEDGER["Ledger & Neobank Service<br/>(Partida Doble · Round-Up · Llaves QR)"]
-        FAM["Supervision & Consent Service<br/>(Invitaciones · Límites · Tarjetas)"]
-        AI["BeHu Mini IA Engine<br/>(Sistema Experto Simbólico)"]
-        SEC["Crypto & Backup Service<br/>(AES-256-GCM · HMAC-SHA256)"]
-    end
-
-    subgraph DATA["🗄️ Capa de Persistencia Políglota & Cloud Storage"]
-        NEON[("Neon PostgreSQL<br/>(SQLAlchemy 2 Async · ACID)")]
-        MONGO[("MongoDB Atlas<br/>(Motor Async · Hábitos & Logs IA)")]
-        S3["AWS S3 / Hybrid Cloud<br/>(Snapshots Cifrados & KYC)"]
-    end
-
-    PWA <-->|"HTTPS / JSON REST (/api/v1)"| AUTH & LEDGER & FAM & AI & SEC
-    AUTH & LEDGER & FAM <-->|"AsyncPG"| NEON
-    AI & SEC <-->|"Logs & Fallback"| MONGO
-    SEC -->|"Boto3 / AES-256-GCM"| S3
 ```
-
-### Stack Tecnológico Detallado
+### 
 
 | Capa | Tecnología | Propósito en BeHu |
 | :--- | :--- | :--- |
@@ -138,7 +96,7 @@ graph TB
 
 ---
 
-## 🗄️ 5. Modelo de Datos (Entidad–Relación & NoSQL)
+## 5. Modelo de Datos (Entidad–Relación & NoSQL)
 
 El esquema relacional en **Neon PostgreSQL** cuenta con migraciones idempotentes automáticas (`ALTER TABLE` seguro en arranque) y modela la contabilidad de partida doble junto con la jerarquía familiar:
 
@@ -221,7 +179,7 @@ erDiagram
 
 ---
 
-## 🤖 6. Motor Inteligente: BeHu Mini IA (Sistema Experto)
+## 6. Motor Inteligente: BeHu Mini IA (Sistema Experto)
 
 A diferencia de chatbots genéricos propensos a alucinaciones o latencia externa, **BeHu Mini** implementa un **Sistema Experto Simbólico Sensible al Contexto** (`app/services/behu_mini_ai.py`) que consulta en vivo el estado del usuario en Neon PostgreSQL:
 
@@ -235,7 +193,7 @@ A diferencia de chatbots genéricos propensos a alucinaciones o latencia externa
 
 ---
 
-## 🔐 7. Seguridad Bancaria, Criptografía y Respaldo en Nube
+## 7. Seguridad Bancaria, Criptografía y Respaldo en Nube
 
 * **Autenticación y Control de Acceso (RBAC):** Tokens JWT firmados (`HS256`), contraseñas hasheadas con Argon2/Bcrypt y aislamiento estricto de rutas (un usuario `JUNIOR` recibe `HTTP 403` si intenta acceder a endpoints de supervisión familiar).
 * **Sello de Integridad en Comprobantes (`HMAC-SHA256`):** Cada asiento contable en el Ledger incluye una firma criptográfica verificable visible en su comprobante digital.
@@ -244,7 +202,7 @@ A diferencia de chatbots genéricos propensos a alucinaciones o latencia externa
 
 ---
 
-## 🔌 8. Catálogo de Endpoints REST API (`/api/v1`)
+## 8. Catálogo de Endpoints REST API (`/api/v1`)
 
 | Dominio | Método | Endpoint | Descripción |
 | :--- | :---: | :--- | :--- |
@@ -266,7 +224,7 @@ A diferencia de chatbots genéricos propensos a alucinaciones o latencia externa
 
 ---
 
-## 📋 9. Trazabilidad Ágil: Sprints e Historias de Usuario
+## 9. Trazabilidad: Sprints e Historias de Usuario
 
 El desarrollo siguió la metodología **GitFlow** (`main`, `develop`, `feature/*`) organizada por Milestones en GitHub:
 
@@ -279,19 +237,7 @@ El desarrollo siguió la metodología **GitFlow** (`main`, `develop`, `feature/*
 
 ---
 
-## 🎨 10. Design System y Experiencia Neobanco PWA
-
-* **Dual Theme (Modo Claro & Modo Oscuro):**
-  * **Modo Oscuro Nativo:** Fondos `#090D16` y `#111726`, bordes `#1E293B`, texto `#F8FAFC` y acentos `#3B82F6` / `#10B981` / `#F59E0B`.
-  * **Modo Claro Fintech:** Fondos `#F8FAFC` y tarjetas `#FFFFFF` con bordes `#E2E8F0` y botones de alto contraste `#0F172A`.
-* **Componentes Visuales Propios:**
-  * **Floating Navigation Dock** en escritorio y barra flotante con `safe-area-inset` en móvil.
-  * **Gráficos SVG Nativos (Zero-Bloat):** Dona de gastos por categoría, barras comparativas de 7 días y medidor radial del Score BeHu.
-  * **PWA Instalable:** Manifiesto `standalone` e iconos optimizados para instalación directa en iOS (Safari) y Android (Chrome).
-
----
-
-## 🚀 11. Instalación Local, Pruebas y Despliegue en Vercel
+## 10. Instalación Local, Pruebas y Despliegue en Vercel
 
 ### Ejecución Local
 
@@ -330,16 +276,9 @@ AWS_S3_BUCKET=<opcional>
 * **Perfil Senior (Acudiente):** `senior@behu.test` / `BeHuSenior1!`
 * **Perfil Junior (Dependiente):** `junior@behu.test` / `BeHuJunior1!`
 
-### Ejecutar Suite de Pruebas Automatizadas
-
-```bash
-pytest -v
-# Resultado esperado: 9 passed
-```
-
 ---
 
-## 👨‍💻 12. Equipo de Ingeniería (Jäger Group)
+## 11. Equipo de Ingeniería (Jäger Group)
 
 Proyecto desarrollado para la asignatura **Fundamentos de Ingeniería de Software** — **Pontificia Universidad Javeriana**:
 
