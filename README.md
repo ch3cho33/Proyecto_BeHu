@@ -78,12 +78,7 @@ flowchart LR
 
 ---
 
-##  4. Stack Tecnológico Detallado
-
-BeHu está diseñado bajo una **arquitectura orientada a servicios modulares desacoplados** y **persistencia políglota** (SQL relacional ACID para el libro mayor contable + NoSQL documental para hábitos y telemetría IA), desplegado en infraestructura Serverless de alta disponibilidad.
-
-```
-### 
+### Stack Tecnológico Detallado
 
 | Capa | Tecnología | Propósito en BeHu |
 | :--- | :--- | :--- |
@@ -96,7 +91,7 @@ BeHu está diseñado bajo una **arquitectura orientada a servicios modulares des
 
 ---
 
-## 5. Modelo de Datos (Entidad–Relación & NoSQL)
+##  4. Modelo de Datos (Entidad–Relación & NoSQL)
 
 El esquema relacional en **Neon PostgreSQL** cuenta con migraciones idempotentes automáticas (`ALTER TABLE` seguro en arranque) y modela la contabilidad de partida doble junto con la jerarquía familiar:
 
@@ -179,7 +174,7 @@ erDiagram
 
 ---
 
-## 6. Motor Inteligente: BeHu Mini IA (Sistema Experto)
+##  5. Motor Inteligente: BeHu Mini IA (Sistema Experto)
 
 A diferencia de chatbots genéricos propensos a alucinaciones o latencia externa, **BeHu Mini** implementa un **Sistema Experto Simbólico Sensible al Contexto** (`app/services/behu_mini_ai.py`) que consulta en vivo el estado del usuario en Neon PostgreSQL:
 
@@ -193,7 +188,7 @@ A diferencia de chatbots genéricos propensos a alucinaciones o latencia externa
 
 ---
 
-## 7. Seguridad Bancaria, Criptografía y Respaldo en Nube
+## 6. Seguridad Bancaria, Criptografía y Respaldo en Nube
 
 * **Autenticación y Control de Acceso (RBAC):** Tokens JWT firmados (`HS256`), contraseñas hasheadas con Argon2/Bcrypt y aislamiento estricto de rutas (un usuario `JUNIOR` recibe `HTTP 403` si intenta acceder a endpoints de supervisión familiar).
 * **Sello de Integridad en Comprobantes (`HMAC-SHA256`):** Cada asiento contable en el Ledger incluye una firma criptográfica verificable visible en su comprobante digital.
@@ -202,7 +197,7 @@ A diferencia de chatbots genéricos propensos a alucinaciones o latencia externa
 
 ---
 
-## 8. Catálogo de Endpoints REST API (`/api/v1`)
+## 7. Catálogo de Endpoints REST API (`/api/v1`)
 
 | Dominio | Método | Endpoint | Descripción |
 | :--- | :---: | :--- | :--- |
@@ -224,7 +219,7 @@ A diferencia de chatbots genéricos propensos a alucinaciones o latencia externa
 
 ---
 
-## 9. Trazabilidad: Sprints e Historias de Usuario
+## 8. Trazabilidad: Sprints e Historias de Usuario
 
 El desarrollo siguió la metodología **GitFlow** (`main`, `develop`, `feature/*`) organizada por Milestones en GitHub:
 
@@ -237,7 +232,7 @@ El desarrollo siguió la metodología **GitFlow** (`main`, `develop`, `feature/*
 
 ---
 
-## 10. Instalación Local, Pruebas y Despliegue en Vercel
+## 9. Instalación Local, Pruebas y Despliegue en Vercel
 
 ### Ejecución Local
 
